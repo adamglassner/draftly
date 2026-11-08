@@ -299,7 +299,8 @@ public partial class MainWindow
             var color = c;
             var b = new Button
             {
-                Width = 24, Height = 24, MinWidth = 0, MinHeight = 0, Padding = new Thickness(0), Margin = new Thickness(2),
+                Style = (Style)FindResource("SwatchButton"),
+                Width = 22, Height = 22, Margin = new Thickness(3),
                 Background = new SolidColorBrush(color), ToolTip = $"#{color.R:X2}{color.G:X2}{color.B:X2}", Focusable = false,
             };
             b.SetResourceReference(BorderBrushProperty, "ControlBorder");

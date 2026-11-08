@@ -64,8 +64,9 @@ public sealed class FormattingMarksAdorner : Adorner
             if (p.BreakPageBefore) _pageBreaks.Add(start.Top - 2);
             if (!ShowMarks) continue;
 
-            double size = Math.Max(9, end.Height * 0.8);
-            _marks.Add((new Point(end.Right + 1, end.Top + (end.Height - size * 1.2) / 2), "¶", size));
+            // Size the mark from the text, not the line (a line with a picture is much taller).
+            double size = Math.Clamp(Math.Min(end.Height * 0.8, p.FontSize * 1.05), 9, 72);
+            _marks.Add((new Point(end.Right + 1, end.Bottom - size * 1.3), "¶", size));
 
             foreach (var inline in Inlines(p.Inlines))
             {

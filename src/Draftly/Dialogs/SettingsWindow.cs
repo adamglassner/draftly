@@ -188,7 +188,8 @@ public sealed class SettingsWindow : Window
             var color = ThemeManager.IsDark ? a.Dark : a.Light;
             var swatch = new Button
             {
-                Width = 44, Height = 44, MinWidth = 0, MinHeight = 0, Padding = new Thickness(0), Margin = new Thickness(0, 0, 8, 8),
+                Style = (Style)FindResource("SwatchButton"),
+                Width = 40, Height = 40, Margin = new Thickness(3, 3, 11, 11),
                 ToolTip = a.Name, Background = new SolidColorBrush(color), BorderThickness = new Thickness(S.Accent == a.Name ? 3 : 1),
             };
             swatch.SetResourceReference(BorderBrushProperty, S.Accent == a.Name ? "Text" : "ControlBorder");

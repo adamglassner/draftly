@@ -35,8 +35,15 @@ public sealed class PrintPreviewWindow : Window
         DockPanel.SetDock(bar, Dock.Top);
         root.Children.Add(bar);
 
-        var tools = new DockPanel { LastChildFill = false };
-        bar.Child = tools;
+        // Close sits on the right and always stays visible; the other tools wrap if the window is narrow.
+        var barDock = new DockPanel();
+        bar.Child = barDock;
+        var close = new Button { Content = "Close preview", Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        close.Click += (_, _) => Close();
+        DockPanel.SetDock(close, Dock.Right);
+        barDock.Children.Add(close);
+        var tools = new WrapPanel();
+        barDock.Children.Add(tools);
         Button Tool(string glyph, string text, Action a, bool primary = false)
         {
             var b = new Button { Style = (Style)FindResource("RibbonSmall"), Tag = glyph, Content = text, Height = 36 };
@@ -55,13 +62,9 @@ public sealed class PrintPreviewWindow : Window
         Tool("", "One page", () => _viewer.FitToMaxPagesAcross(1));
         Tool("", "Two pages", () => _viewer.FitToMaxPagesAcross(2));
         Tool("", "Page width", () => _viewer.FitToWidth());
-        _pages = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
+        _pages = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 8, 0) };
         _pages.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
         tools.Children.Add(_pages);
-        var close = new Button { Content = "Close preview", Margin = new Thickness(10, 0, 0, 0) };
-        close.Click += (_, _) => Close();
-        DockPanel.SetDock(close, Dock.Right);
-        tools.Children.Add(close);
 
         _viewer = new DocumentViewer { Document = preview.Document, Template = ViewerTemplate() };
         _viewer.SetResourceReference(Control.BackgroundProperty, "CanvasBg");
