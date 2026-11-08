@@ -110,6 +110,9 @@ public static class RtfBaseline
         int state = 0;          // 0 normal, 1 subscript, 2 superscript
         string spacing = null;  // current paragraph line spacing as "twips,mult", or null for single
         bool carry = false;     // a new paragraph started; tag it with the spacing once its text begins
+        bool dest = false;      // inside a group that isn't body text
+        bool groupStart = false;
+        int i = 0, n = rtf.Length;
 
         void Flush()
         {
@@ -117,9 +120,6 @@ public static class RtfBaseline
             carry = false;
             if (spacing != null) sb.Append(SpacingPrefix).Append(spacing).Append("@@");
         }
-        bool dest = false;      // inside a group that isn't body text
-        bool groupStart = false;
-        int i = 0, n = rtf.Length;
 
         void Open(int s) { if (s == 1) sb.Append(SubStart); else if (s == 2) sb.Append(SupStart); }
         void Close(int s) { if (s == 1) sb.Append(SubEnd); else if (s == 2) sb.Append(SupEnd); }
