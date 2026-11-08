@@ -11,6 +11,14 @@ public sealed class MessageDialog : DialogBase
 
     public bool Yes { get; private set; }
 
+    /// <summary>The self-test can't click message boxes, so it records them as failures instead of waiting.</summary>
+    private static bool SelfTestIntercept(string title, string message)
+    {
+        if (!App.IsSelfTest) return false;
+        try { System.IO.File.AppendAllText(App.SelfTestOutput, $"FAIL unexpected message box during \"{App.MainWindowTestName}\": {title}: {message.Replace("\n", " ")}\r\n"); } catch { }
+        return true;
+    }
+
     private MessageDialog(Window owner, string title, string message, Kind kind, bool yesNo) : base(title, 420)
     {
         if (owner != null && owner.IsLoaded) Owner = owner;
@@ -46,11 +54,13 @@ public sealed class MessageDialog : DialogBase
 
     public static void Show(Window owner, string title, string message, Kind kind = Kind.Info)
     {
+        if (SelfTestIntercept(title, message)) return;
         new MessageDialog(owner, title, message, kind, false).ShowDialog();
     }
 
     public static bool Ask(Window owner, string title, string message)
     {
+        if (SelfTestIntercept(title, message)) return false;
         var d = new MessageDialog(owner, title, message, Kind.Question, true);
         d.ShowDialog();
         return d.Yes;

@@ -24,7 +24,6 @@
         <Setter Property="ResizeMode" Value="NoResize"/>
         <Setter Property="ShowInTaskbar" Value="False"/>
         <Setter Property="SizeToContent" Value="WidthAndHeight"/>
-        <Setter Property="WindowStartupLocation" Value="CenterOwner"/>
     </Style>
 
     <Style x:Key="Icon" TargetType="TextBlock">

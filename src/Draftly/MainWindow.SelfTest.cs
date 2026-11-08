@@ -118,7 +118,7 @@ public partial class MainWindow
         await Test("Screenshots", TakeScreenshots);
 
         // Missing-resource warnings logged by App count as failures.
-        var resourceFails = File.Exists(outPath) ? File.ReadAllLines(outPath).Count(l => l.StartsWith("FAIL missing resource")) : 0;
+        var resourceFails = File.Exists(outPath) ? File.ReadAllLines(outPath).Count(l => l.StartsWith("FAIL missing resource") || l.StartsWith("FAIL unexpected message box")) : 0;
         _testFails += resourceFails;
         var summary = _testFails == 0 ? "ALL TESTS PASSED" : $"{_testFails} TEST(S) FAILED";
         try { File.AppendAllText(outPath, summary + "\r\n"); } catch { }
@@ -150,7 +150,8 @@ public partial class MainWindow
     {
         Editor.CaretPosition = Editor.Document.ContentStart;
         Assert(FindNext(new FindOptions { Text = text, MatchCase = true, WrapAround = true }, quiet: true), $"couldn't find \"{text}\"");
-        Assert(Editor.Selection.Text == text, $"selected \"{Editor.Selection.Text}\" instead of \"{text}\"");
+        // A selection at the start of a list item also includes its bullet ("•\t"), as in WordPad.
+        Assert(Editor.Selection.Text.EndsWith(text), $"selected \"{Editor.Selection.Text}\" instead of \"{text}\"");
     }
 
     private void CaretToEnd() => Editor.CaretPosition = Editor.Document.ContentEnd.GetInsertionPosition(LogicalDirection.Backward);

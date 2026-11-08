@@ -29,20 +29,44 @@ public partial class MainWindow : FindReplaceWindow.IHost
     private void Paste_Click(object sender, RoutedEventArgs e) => PasteSmart();
     private void PasteSpecial_Click(object sender, RoutedEventArgs e) => PasteSpecial();
 
-    // Copy/cut run with "automatic" text set to black so other apps (Word, email) get normal black text,
-    // even when Draftly is showing light text on a dark page.
+    // Copy/cut put RTF and plain text on the clipboard. The RTF is written with "automatic" text set to
+    // black, so Word, email etc. get normal black text even when Draftly shows light text on a dark page.
+    private bool PutSelectionOnClipboard()
+    {
+        if (Editor.Selection.IsEmpty) return false;
+        var sel = new TextRange(Editor.Selection.Start, Editor.Selection.End);
+        var data = new DataObject();
+        DocumentService.WithBlackText(Editor.Document, () =>
+        {
+            using var rtf = new MemoryStream();
+            sel.Save(rtf, DataFormats.Rtf);
+            data.SetData(DataFormats.Rtf, Encoding.Latin1.GetString(rtf.ToArray()));
+            using var xaml = new MemoryStream();
+            sel.Save(xaml, DataFormats.XamlPackage);
+            data.SetData(DataFormats.XamlPackage, new MemoryStream(xaml.ToArray()));
+        });
+        data.SetData(DataFormats.UnicodeText, sel.Text);
+        data.SetData(DataFormats.Text, sel.Text);
+        Clipboard.SetDataObject(data, true);
+        return true;
+    }
+
     private void CopySelection()
     {
-        if (Editor.Selection.IsEmpty) return;
-        try { DocumentService.WithBlackText(Editor.Document, () => Editor.Copy()); }
+        try { PutSelectionOnClipboard(); }
         catch (Exception ex) { ClipboardBusy(ex); }
         Editor.Focus();
     }
 
     private void CutSelection()
     {
-        if (Editor.Selection.IsEmpty) return;
-        try { DocumentService.WithBlackText(Editor.Document, () => Editor.Cut()); }
+        try
+        {
+            if (!PutSelectionOnClipboard()) return;
+            Editor.BeginChange();
+            try { Editor.Selection.Text = ""; }
+            finally { Editor.EndChange(); }
+        }
         catch (Exception ex) { ClipboardBusy(ex); }
         Editor.Focus();
     }

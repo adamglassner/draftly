@@ -23,7 +23,7 @@ public class DialogBase : Window
         MinWidth = minWidth;
         ThemeManager.Attach(this);
         Owner = Application.Current.MainWindow is { IsLoaded: true } mw && mw != this ? mw : null;
-        if (Owner == null) WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        WindowStartupLocation = Owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen;
 
         var root = new DockPanel();
         _footer = new Border
