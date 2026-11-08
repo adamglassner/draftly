@@ -115,6 +115,7 @@ public partial class MainWindow
         await Test("Paragraph indent and spacing", ParagraphSettingsWork);
         await Test("Settings are saved and reloaded", SettingsPersist);
         await Test("Every dialog opens in Light and Dark", DialogsOpen);
+        await Test("Toolbar fits a 1024-pixel-wide screen", RibbonFits);
         await Test("Screenshots", TakeScreenshots);
 
         // Missing-resource warnings logged by App count as failures.
@@ -122,6 +123,7 @@ public partial class MainWindow
         _testFails += resourceFails;
         var summary = _testFails == 0 ? "ALL TESTS PASSED" : $"{_testFails} TEST(S) FAILED";
         try { File.AppendAllText(outPath, summary + "\r\n"); } catch { }
+        try { if (_shotDir != null) File.Copy(Path.Combine(_testDir, "formatted.rtf"), Path.Combine(_shotDir, "formatted.rtf"), true); } catch { }
         try { Directory.Delete(_testDir, true); } catch { }
 
         _closingConfirmed = true;
@@ -353,6 +355,8 @@ public partial class MainWindow
         Assert(Prop(TextElement.FontStyleProperty) is FontStyle st && st == FontStyles.Italic, $"{where}: italic lost");
         SelectFirst("underlined");
         Assert(HasDecoration(TextDecorationLocation.Underline), $"{where}: underline lost");
+        UpdateFormattingUi();
+        Assert(UnderlineBtn.IsChecked == true, $"{where}: the Underline button doesn't light up for underlined text");
         SelectFirst("struck");
         Assert(HasDecoration(TextDecorationLocation.Strikethrough), $"{where}: strikethrough lost");
         Assert(!HasDecoration(TextDecorationLocation.Underline), $"{where}: struck text gained an underline");
@@ -402,6 +406,14 @@ public partial class MainWindow
         Assert(_path == path && _format == DocFormat.Rtf, "reopened file has the wrong path or format");
         Assert(!_dirty, "a freshly opened file shouldn't be marked as changed");
         VerifyFormattedDocument("after reopening");
+        SelectFirst("underlined");
+        ToggleDecoration(TextDecorationLocation.Underline);
+        SelectFirst("underlined");
+        Assert(!HasDecoration(TextDecorationLocation.Underline), "after reopening, the Underline button can't remove the underline");
+        ToggleDecoration(TextDecorationLocation.Underline);
+        SelectFirst("underlined");
+        Assert(HasDecoration(TextDecorationLocation.Underline), "after reopening, underline can't be turned back on");
+        SetDirty(false);
         Assert(S.RecentFiles.FirstOrDefault() == path, "the file wasn't added to Recent documents");
     }
 
@@ -427,6 +439,9 @@ public partial class MainWindow
 
         if (expectDark)
             Assert(Luminance(Res("PageBg")) < 0.05, "the page isn't dark in Dark mode");
+        foreach (var run in DocumentService.Walk(Editor.Document.Blocks).OfType<Run>())
+            if (run.Background is SolidColorBrush hb && run.Foreground is SolidColorBrush hf && hb.Color.A > 128 && run.Text.Trim().Length > 0)
+                Assert(Contrast(hb.Color, hf.Color) >= 4.5, $"highlighted \"{run.Text}\" is hard to read ({Contrast(hb.Color, hf.Color):0.0}:1)");
         else
             Assert(Res("PageBg") == Colors.White, "the page isn't white in Light mode");
 
@@ -972,6 +987,26 @@ public partial class MainWindow
             d = VisualTreeHelper.GetParent(d);
         }
         return null;
+    }
+
+    private async Task RibbonFits()
+    {
+        var oldState = WindowState;
+        WindowState = WindowState.Normal;
+        Width = 1024; Height = 740;
+        await Settle(300);
+        foreach (var tab in new[] { TabHome, TabView })
+        {
+            tab.IsChecked = true;
+            await Settle(200);
+            var panel = tab == TabHome ? HomePanel : ViewPanel;
+            var scroller = FindVisuals<ScrollViewer>(this).First(sv => sv.Content is Grid g && g.Children.Contains(panel));
+            Assert(panel.ActualWidth <= scroller.ViewportWidth + 1, $"{tab.Content} tab is {panel.ActualWidth:0} px wide but only {scroller.ViewportWidth:0} px fit");
+        }
+        TabHome.IsChecked = true;
+        Width = 1280; Height = 820;
+        WindowState = oldState;
+        await Settle(200);
     }
 
     private async Task TakeScreenshots()

@@ -275,6 +275,76 @@ public static class DocumentService
         }
     }
 
+    /// <summary>
+    /// RTF files (and WPF's own RTF reader) often put underline/strikethrough on a Span or Paragraph that
+    /// wraps the text. Moving it onto the text runs themselves lets the toolbar show it and toggle it off.
+    /// </summary>
+    public static void PushDownDecorations(IEnumerable<Block> blocks)
+    {
+        foreach (var el in Walk(blocks).ToList())
+        {
+            if (el is Run) continue;
+            if (el.ReadLocalValue(Inline.TextDecorationsProperty) is not TextDecorationCollection outer &&
+                el.ReadLocalValue(Paragraph.TextDecorationsProperty) is not TextDecorationCollection)
+                continue;
+            var deco = el is Paragraph para ? para.TextDecorations : (el as Inline)?.TextDecorations;
+            if (deco == null || deco.Count == 0) continue;
+            bool u = deco.Any(d => d.Location == TextDecorationLocation.Underline);
+            bool st = deco.Any(d => d.Location == TextDecorationLocation.Strikethrough);
+            IEnumerable<Inline> inlines = el switch
+            {
+                Paragraph p => Descendants(p.Inlines),
+                Span sp => Descendants(sp.Inlines),
+                _ => Enumerable.Empty<Inline>(),
+            };
+            foreach (var run in inlines.OfType<Run>())
+            {
+                var own = run.TextDecorations;
+                bool ru = u || (own?.Any(d => d.Location == TextDecorationLocation.Underline) ?? false);
+                bool rs = st || (own?.Any(d => d.Location == TextDecorationLocation.Strikethrough) ?? false);
+                run.TextDecorations = Decorations(ru, rs);
+            }
+            if (el is Paragraph pp) pp.ClearValue(Paragraph.TextDecorationsProperty);
+            else el.ClearValue(Inline.TextDecorationsProperty);
+        }
+    }
+
+    private static IEnumerable<Inline> Descendants(InlineCollection inlines)
+    {
+        foreach (var i in inlines)
+        {
+            yield return i;
+            if (i is Span s) foreach (var x in Descendants(s.Inlines)) yield return x;
+        }
+    }
+
+    /// <summary>
+    /// Text on a light highlight must be dark to stay readable on the dark page, so "automatic" text
+    /// inside a light highlight is set to black (which is what it prints and saves as anyway).
+    /// </summary>
+    public static void FixHighlightContrast(IEnumerable<TextElement> elements)
+    {
+        foreach (var el in elements)
+        {
+            if (el is not Inline inl) continue;
+            if (inl.Background is not SolidColorBrush bg || bg.Color.A < 128) continue;
+            double lum = (0.2126 * bg.Color.R + 0.7152 * bg.Color.G + 0.0722 * bg.Color.B) / 255.0;
+            if (lum < 0.45) continue;
+            if (HasExplicitForeground(inl)) continue;
+            inl.Foreground = Brushes.Black;
+        }
+    }
+
+    private static bool HasExplicitForeground(TextElement el)
+    {
+        for (DependencyObject d = el; d is TextElement t && d is not FlowDocument; d = t.Parent)
+        {
+            if (t.ReadLocalValue(TextElement.ForegroundProperty) != DependencyProperty.UnsetValue) return true;
+            if (t is Block) break;
+        }
+        return false;
+    }
+
     public static IEnumerable<TextElement> Walk(IEnumerable<Block> blocks)
     {
         foreach (var b in blocks)

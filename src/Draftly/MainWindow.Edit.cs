@@ -104,6 +104,8 @@ public partial class MainWindow : FindReplaceWindow.IHost
         {
             paste();
             if (start != null && end != null) NormaliseRange(start, end);
+            DocumentService.PushDownDecorations(Editor.Document.Blocks);
+            DocumentService.FixHighlightContrast(DocumentService.Walk(Editor.Document.Blocks));
         }
         finally { Editor.EndChange(); }
     }

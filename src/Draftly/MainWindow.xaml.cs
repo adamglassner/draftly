@@ -66,6 +66,7 @@ public partial class MainWindow : Window
         PreviewKeyDown += Window_PreviewKeyDown;
         Closing += MainWindow_Closing;
         SourceInitialized += (_, _) => HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WndProc);
+        SizeChanged += (_, _) => UpdateRibbonDensity();
 
         Loaded += (_, _) =>
         {
@@ -111,6 +112,8 @@ public partial class MainWindow : Window
             doc.ClearValue(TextElement.ForegroundProperty);   // follow the theme (see NormaliseAutomaticColour)
             doc.ClearValue(FlowDocument.BackgroundProperty);
             DocumentService.NormaliseAutomaticColour(doc);
+            DocumentService.PushDownDecorations(doc.Blocks);
+            DocumentService.FixHighlightContrast(DocumentService.Walk(doc.Blocks));
             Editor.Document = doc;
             UpdatePageLayout();
             Editor.CaretPosition = doc.ContentStart;
@@ -147,6 +150,7 @@ public partial class MainWindow : Window
             ThemeDarkBtn.IsChecked = S.Theme == ThemeMode.Dark;
             ThemeSystemBtn.IsChecked = S.Theme == ThemeMode.System;
 
+            UpdateRibbonDensity();
             Editor.SpellCheck.IsEnabled = S.SpellCheck;
             Editor.AutoWordSelection = S.SelectWholeWords;
             Ruler.Unit = S.Units;
@@ -158,6 +162,14 @@ public partial class MainWindow : Window
         finally { _updatingUi = false; }
         UpdatePageLayout();
         RefreshOverlays();
+    }
+
+    /// <summary>On narrow windows the small toolbar buttons drop their labels so every group still fits.</summary>
+    private void UpdateRibbonDensity()
+    {
+        bool compact = ActualWidth > 0 && ActualWidth < 1220;
+        Resources["RibbonLabelVisibility"] = compact || !S.ShowRibbonLabels ? Visibility.Collapsed : Visibility.Visible;
+        FontFamilyBox.Width = compact ? 140 : 170;
     }
 
     private void OnThemeChanged()

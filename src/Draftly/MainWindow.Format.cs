@@ -144,7 +144,17 @@ public partial class MainWindow
     private bool HasDecoration(TextDecorationLocation loc)
     {
         var v = Editor.Selection.GetPropertyValue(Inline.TextDecorationsProperty);
-        return v is TextDecorationCollection c && c.Any(d => d.Location == loc);
+        if (v is TextDecorationCollection c && c.Any(d => d.Location == loc)) return true;
+        // Also look at what encloses the text (pasted RTF can carry it on a Span or the paragraph).
+        var sel = Editor.Selection;
+        var pos = sel.IsEmpty ? sel.Start : (sel.Start.GetNextInsertionPosition(LogicalDirection.Forward) ?? sel.Start);
+        for (DependencyObject d = pos.Parent; d is TextElement t; d = t.Parent)
+        {
+            var deco = t switch { Inline i => i.TextDecorations, Paragraph p => p.TextDecorations, _ => null };
+            if (deco != null && deco.Any(x => x.Location == loc)) return true;
+            if (t is Block) break;
+        }
+        return false;
     }
 
     /// <summary>Toggles underline or strikethrough without removing the other.</summary>
@@ -221,8 +231,14 @@ public partial class MainWindow
 
     private void ApplyHighlight(Color? c)
     {
-        if (c == null) Editor.Selection.ApplyPropertyValue(TextElement.BackgroundProperty, null);
-        else Editor.Selection.ApplyPropertyValue(TextElement.BackgroundProperty, new SolidColorBrush(c.Value));
+        Editor.BeginChange();
+        try
+        {
+            if (c == null) Editor.Selection.ApplyPropertyValue(TextElement.BackgroundProperty, null);
+            else Editor.Selection.ApplyPropertyValue(TextElement.BackgroundProperty, new SolidColorBrush(c.Value));
+            DocumentService.FixHighlightContrast(DocumentService.Walk(Editor.Document.Blocks));
+        }
+        finally { Editor.EndChange(); }
         Editor.Focus();
     }
 
