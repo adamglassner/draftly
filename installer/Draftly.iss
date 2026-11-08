@@ -73,7 +73,9 @@ Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; The icon is embedded in Draftly.exe, so shortcuts use the exe's own icon.
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Write and edit documents"
+; Straight into the Start menu's app list (no subfolder), like other Windows 10/11 apps.
+; /NOICONS (used by the Bytehawk Studio Launcher) skips it.
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Write and edit documents"; Check: not WizardNoIcons
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Write and edit documents"; Tasks: desktopicon
 
 [Registry]

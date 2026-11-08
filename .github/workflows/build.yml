@@ -111,6 +111,7 @@ jobs:
           $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/NOICONS', "/DIR=`"$dir`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Launcher-style setup exited with $($p.ExitCode)" }
           if (-not (Test-Path (Join-Path $dir 'Draftly.exe'))) { throw 'Launcher-style install missing Draftly.exe' }
+          if (Test-Path $lnk) { throw '/NOICONS still created a Start Menu shortcut' }
           Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait | Out-Null
           Start-Sleep -Seconds 3
           if (Test-Path (Join-Path $dir 'Draftly.exe')) { throw 'Launcher-style uninstall left Draftly.exe behind' }
