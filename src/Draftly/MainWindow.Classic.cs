@@ -95,6 +95,7 @@ public partial class MainWindow
         Grid.SetRow(panel, 1);
         RootGrid.Children.Add(panel);
         _classicChrome = panel;
+        UpdateRibbonDensity();
     }
 
     private Button ToolButton(string glyph, string tip, Action click)

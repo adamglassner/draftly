@@ -1199,6 +1199,8 @@ public partial class MainWindow
         Width = 1024;
         await Settle(300);
         Assert(_classicChrome.ActualHeight < 200, $"the classic toolbars take {_classicChrome.ActualHeight:0} px at 1024 px wide");
+        var rows = FindVisuals<WrapPanel>(_classicChrome).Select(wp => wp.Children.OfType<FrameworkElement>().Select(c => Math.Round(c.TranslatePoint(new Point(0, 0), wp).Y / 20)).Distinct().Count()).ToList();
+        Assert(rows.All(r => r == 1), $"at 1024 px the classic toolbars wrap onto extra rows ({string.Join(", ", rows)} rows)");
         foreach (var wp in FindVisuals<WrapPanel>(_classicChrome))
             foreach (FrameworkElement child in wp.Children)
             {
