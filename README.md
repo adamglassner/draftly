@@ -2,6 +2,10 @@
 
 A modern rich text word processor for Windows 10 and 11, by **Bytehawk Studio**. It's laid out like WordPad: toolbar on top, page in the middle, status bar at the bottom. It adds a Windows 11 look, full Light/Dark/Follow System themes (including a dark page), and settings WordPad never had.
 
+Choose your interface in **Settings › Appearance › Interface** (or the View tab / View menu):
+- **Ribbon:** Home and View tabs, like WordPad in Windows 10 and 11.
+- **Classic:** a menu bar (File, Edit, View, Insert, Format, Help) with a standard toolbar and a formatting toolbar, like older WordPad and Word.
+
 | Light | Dark |
 |---|---|
 | ![Draftly in Light mode](docs/screenshot-light.png) | ![Draftly in Dark mode](docs/screenshot-dark.png) |
@@ -19,11 +23,15 @@ A modern rich text word processor for Windows 10 and 11, by **Bytehawk Studio**.
 - **Safety:** asks to save before closing or opening another document, auto-recovery after a crash or power cut, saves are crash-safe (write then swap), optional `.bak` backup copies
 - **Settings:** theme, seven accent colours, dark or white page in Dark mode, default font, units, default zoom, spell check, page defaults, auto-recovery interval, text encoding, recent-file count, window memory, reopen last document, a full shortcut list, and more. Every change applies immediately.
 
+**Classic interface**
+
+![Draftly with classic menus and toolbars](docs/screenshot-classic.png)
+
 ![Settings](docs/screenshot-settings.png)
 
 ## Tested on every build
 
-Each push builds Draftly on Windows and runs its self-test (26 checks). The self-test formats a document, inserts a picture, saves it as RTF, reopens it and checks everything survived. It also covers WordPad-style RTF, Light/Dark/Follow System readability and persistence, Find/Replace, Undo/Redo, shortcuts, the clipboard, the save prompt, plain text and Word import, Print Preview and every dialog. Then it installs, launches and uninstalls the setup program. See [BUILD.md](BUILD.md#testing).
+Each push builds Draftly on Windows and runs its self-test (28 checks, including the Classic interface). The self-test formats a document, inserts a picture, saves it as RTF, reopens it and checks everything survived. It also covers WordPad-style RTF, Light/Dark/Follow System readability and persistence, Find/Replace, Undo/Redo, shortcuts, the clipboard, the save prompt, plain text and Word import, Print Preview and every dialog. Then it installs, launches and uninstalls the setup program. See [BUILD.md](BUILD.md#testing).
 
 ## Download
 
