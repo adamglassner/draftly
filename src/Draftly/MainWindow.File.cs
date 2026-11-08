@@ -37,7 +37,7 @@ public partial class MainWindow
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Print…", "", "Ctrl+P", Print));
         menu.Items.Add(Item("Print preview", "", "Ctrl+F2", PrintPreview));
-        menu.Items.Add(Item("Page setup…", "", "", PageSetup));
+        menu.Items.Add(Item("Page setup…", "", "", () => PageSetup()));
         menu.Items.Add(new Separator());
 
         var recent = Item("Recent documents", "", "", () => { });

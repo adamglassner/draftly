@@ -385,9 +385,6 @@ public static class DocxImporter
                 case W.SdtRun sdt:
                     if (sdt.SdtContentRun != null) AddInlines(ctx, sdt.SdtContentRun.ChildElements, target, baseRun);
                     break;
-                case W.SmartTagRun st:
-                    AddInlines(ctx, st.ChildElements, target, baseRun);
-                    break;
             }
         }
     }
