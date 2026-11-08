@@ -109,6 +109,14 @@ public static class RtfBaseline
         var stack = new Stack<(int State, bool Dest, string Spacing)>();
         int state = 0;          // 0 normal, 1 subscript, 2 superscript
         string spacing = null;  // current paragraph line spacing as "twips,mult", or null for single
+        bool carry = false;     // a new paragraph started; tag it with the spacing once its text begins
+
+        void Flush()
+        {
+            if (!carry || dest) return;
+            carry = false;
+            if (spacing != null) sb.Append(SpacingPrefix).Append(spacing).Append("@@");
+        }
         bool dest = false;      // inside a group that isn't body text
         bool groupStart = false;
         int i = 0, n = rtf.Length;
@@ -159,19 +167,22 @@ public static class RtfBaseline
                             end = q < n && rtf[q] == ' ' ? q + 1 : q;
                         }
                         spacing = param.Length == 0 || param == "0" ? null : param + "," + mult;
+                        carry = false;
                         if (spacing != null) sb.Append(SpacingPrefix).Append(spacing).Append("@@");
                         i = end;
                         continue;
                     }
-                    if (!dest && word == "pard") spacing = null;
+                    if (!dest && word == "pard") { spacing = null; carry = false; }
                     if (!dest && word == "par")
                     {
                         sb.Append(rtf, i, end - i);
                         i = end;
-                        // Spacing carries on to the next paragraph until \pard resets it.
-                        if (spacing != null) sb.Append(SpacingPrefix).Append(spacing).Append("@@");
+                        // Spacing carries on to the next paragraph unless \pard resets it first.
+                        carry = spacing != null;
                         continue;
                     }
+                    if (!dest && (word == "u" || word == "tab" || word == "emdash" || word == "endash" || word == "bullet" ||
+                                  word == "lquote" || word == "rquote" || word == "ldblquote" || word == "rdblquote")) Flush();
                     if (!dest)
                     {
                         int? next = word switch
@@ -192,6 +203,7 @@ public static class RtfBaseline
                 }
                 // Control symbols: \*, \'hh, \{, \}, \\ and friends
                 if (rtf[i + 1] == '*' && groupStart) dest = true;
+                if (rtf[i + 1] == '\'' || rtf[i + 1] == '{' || rtf[i + 1] == '}' || rtf[i + 1] == '\\' || rtf[i + 1] == '~') Flush();
                 groupStart = false;
                 int len = rtf[i + 1] == '\'' ? 4 : 2;
                 len = Math.Min(len, n - i);
@@ -220,7 +232,7 @@ public static class RtfBaseline
                 i++;
                 continue;
             }
-            if (c != '\r' && c != '\n') groupStart = false;
+            if (c != '\r' && c != '\n') { groupStart = false; Flush(); }
             sb.Append(c);
             i++;
         }
