@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 namespace Draftly.Services;
 
 public enum ThemeMode { System, Light, Dark }
+public enum InterfaceStyle { Ribbon, Classic }
 public enum WrapMode { NoWrap, WrapToWindow, WrapToRuler }
 public enum MeasureUnit { Inches, Centimeters, Points, Picas }
 public enum TxtEncoding { Utf8, Utf8Bom, Ansi, Utf16 }
@@ -15,6 +16,8 @@ public sealed class AppSettings
 {
     // ---- Appearance ----
     public ThemeMode Theme { get; set; } = ThemeMode.System;
+    /// <summary>Ribbon (Home/View tabs) or Classic (menu bar + toolbars).</summary>
+    public InterfaceStyle Interface { get; set; } = InterfaceStyle.Ribbon;
     public string Accent { get; set; } = "Indigo";
     public bool DarkPageInDarkMode { get; set; } = true;
     public bool ShowRibbonLabels { get; set; } = true;

@@ -117,6 +117,7 @@ public partial class MainWindow
         await Test("Settings are saved and reloaded", SettingsPersist);
         await Test("Every dialog opens in Light and Dark", DialogsOpen);
         await Test("Toolbar fits a 1024-pixel-wide screen", RibbonFits);
+        await Test("Classic interface: menus, toolbars and switching back", ClassicInterfaceWorks);
         await Test("Screenshots", TakeScreenshots);
 
         // Missing-resource warnings logged by App count as failures.
@@ -1020,8 +1021,13 @@ public partial class MainWindow
     /// <summary>Every visible TextBlock in the window has enough contrast against the window background.</summary>
     private static void AssertReadable(Window w, string name)
     {
-        if (w.Background is not SolidColorBrush bg) return;
-        foreach (var tb in FindVisuals<TextBlock>(w))
+        if (w.Background is not SolidColorBrush) return;
+        AssertReadable((DependencyObject)w, name);
+    }
+
+    private static void AssertReadable(DependencyObject root, string name)
+    {
+        foreach (var tb in FindVisuals<TextBlock>(root))
         {
             if (!tb.IsVisible || !tb.IsEnabled || string.IsNullOrWhiteSpace(tb.Text) || tb.Foreground is not SolidColorBrush fg) continue;
             if (FindAncestorBackground(tb) is Color local)
@@ -1064,6 +1070,156 @@ public partial class MainWindow
         await Settle(200);
     }
 
+    // ---------------------------------------------------------------- Classic interface
+
+    private MenuItem FindMenu(params string[] path)
+    {
+        ItemsControl parent = _classicMenu;
+        MenuItem found = null;
+        foreach (var name in path)
+        {
+            found = parent.Items.OfType<MenuItem>().FirstOrDefault(m => AccessText(m.Header as string) == name);
+            Assert(found != null, $"menu item {string.Join(" › ", path)} is missing (no \"{name}\")");
+            parent = found;
+        }
+        return found;
+    }
+
+    private void InvokeMenu(params string[] path)
+    {
+        var mi = FindMenu(path);
+        Assert(mi.IsEnabled, $"{string.Join(" › ", path)} is disabled");
+        mi.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+    }
+
+    private void ClickClassicTool(string tooltip)
+    {
+        var b = FindVisuals<System.Windows.Controls.Primitives.ButtonBase>(_classicChrome).FirstOrDefault(x => x.ToolTip as string == tooltip);
+        Assert(b != null, $"classic toolbar button \"{tooltip}\" is missing");
+        b.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+    }
+
+    private async Task<FrameworkElement> OpenMenu(string name)
+    {
+        var top = FindMenu(name);
+        top.IsSubmenuOpen = true;
+        await Settle(300);
+        var popup = top.Template.FindName("PART_Popup", top) as System.Windows.Controls.Primitives.Popup;
+        Assert(popup != null && popup.IsOpen && popup.Child is FrameworkElement, $"the {name} menu didn't open");
+        return (FrameworkElement)popup.Child;
+    }
+
+    private async Task ClassicInterfaceWorks()
+    {
+        S.Interface = InterfaceStyle.Classic;
+        SettingsService.Commit();
+        await Settle(300);
+        Assert(_classicChrome != null && _classicChrome.IsVisible, "the classic menus and toolbars didn't appear");
+        Assert(!RibbonBorder.IsVisible && !TabRow.IsVisible, "the ribbon is still showing in Classic mode");
+        var headers = string.Join(",", _classicMenu.Items.OfType<MenuItem>().Select(m => AccessText(m.Header as string)));
+        Assert(headers == "File,Edit,View,Insert,Format,Help", $"the menus are {headers}");
+        SettingsService.Load();
+        Assert(S.Interface == InterfaceStyle.Classic, "the Classic choice didn't survive a restart");
+
+        // Toolbar buttons
+        ResetDocument();
+        TypeText("classic toolbar words");
+        await Settle();
+        SelectFirst("toolbar");
+        ClickClassicTool("Bold (Ctrl+B)");
+        Assert(Prop(TextElement.FontWeightProperty) is FontWeight fw && fw == FontWeights.Bold, "the classic Bold button didn't bold");
+        UpdateFormattingUi();
+        Assert(_classicToggles.First(t => t.Ribbon == BoldBtn).Classic.IsChecked == true, "the classic Bold button doesn't light up for bold text");
+        ClickClassicTool("Center (Ctrl+E)");
+        Assert(Prop(Paragraph.TextAlignmentProperty) is TextAlignment c && c == TextAlignment.Center, "the classic Center button didn't center");
+
+        _classicSize.IsDropDownOpen = true;
+        _classicSize.SelectedItem = "18";
+        _classicSize.IsDropDownOpen = false;
+        await Settle();
+        SelectFirst("toolbar");
+        Assert(Prop(TextElement.FontSizeProperty) is double fs && Math.Abs(DocumentService.DipsToPoints(fs) - 18) < 0.6, "the classic font size box didn't change the size");
+        var georgia = ((IEnumerable<FontFamily>)_classicFont.ItemsSource).FirstOrDefault(f => f.Source == "Georgia");
+        if (georgia != null)
+        {
+            _classicFont.IsDropDownOpen = true;
+            _classicFont.SelectedItem = georgia;
+            _classicFont.IsDropDownOpen = false;
+            await Settle();
+            SelectFirst("toolbar");
+            Assert(Prop(TextElement.FontFamilyProperty) is FontFamily ff && ff.Source == "Georgia", "the classic font box didn't change the font");
+            UpdateFormattingUi();
+            Assert(_classicFont.Text == "Georgia", $"the classic font box shows \"{_classicFont.Text}\"");
+        }
+
+        // Menu commands
+        SelectFirst("words");
+        InvokeMenu("Format", "Italic");
+        Assert(Prop(TextElement.FontStyleProperty) is FontStyle it && it == FontStyles.Italic, "Format › Italic didn't italicize");
+        InvokeMenu("Edit", "Undo");
+        SelectFirst("words");
+        Assert(Prop(TextElement.FontStyleProperty) is FontStyle ni && ni != FontStyles.Italic, "Edit › Undo didn't undo");
+        InvokeMenu("Format", "Align", "Right");
+        Assert(Prop(Paragraph.TextAlignmentProperty) is TextAlignment r && r == TextAlignment.Right, "Format › Align › Right didn't apply");
+        InvokeMenu("Format", "Bullets", "○ Hollow circle");
+        Assert(CurrentList()?.MarkerStyle == TextMarkerStyle.Circle, "Format › Bullets › Hollow circle didn't apply");
+        InvokeMenu("Format", "Line spacing", 2.0.ToString("0.0#", System.Globalization.CultureInfo.CurrentCulture));
+        Assert(Editor.Selection.Start.Paragraph is Paragraph lp && GetLineSpacing(lp) is double ls && Math.Abs(ls - 2) < 0.1, "Format › Line spacing › 2.0 didn't apply");
+        InvokeMenu("View", "Ruler");
+        Assert(!S.ShowRuler && RulerHost.Visibility == Visibility.Collapsed, "View › Ruler didn't hide the ruler");
+        InvokeMenu("View", "Ruler");
+        Assert(S.ShowRuler, "View › Ruler didn't show the ruler again");
+        InvokeMenu("View", "Theme", "Dark");
+        await Settle(150);
+        Assert(ThemeManager.IsDark, "View › Theme › Dark didn't switch");
+
+        // Every menu opens, is readable, and shows the right check marks
+        SelectFirst("toolbar");
+        foreach (var theme in new[] { ThemeMode.Dark, ThemeMode.Light })
+        {
+            S.Theme = theme; SettingsService.Commit(); await Settle(150);
+            foreach (var name in new[] { "File", "Edit", "View", "Insert", "Format", "Help" })
+            {
+                var content = await OpenMenu(name);
+                AssertReadable(content, $"{name} menu ({theme})");
+                if (name is "File" or "Format" or "View") Snapshot(content, $"menu-{name.ToLowerInvariant()}-{theme.ToString().ToLowerInvariant()}");
+                if (name == "Format")
+                    Assert(FindMenu("Format", "Bold").IsChecked, "Format › Bold isn't ticked for bold text");
+                if (name == "View")
+                    Assert(FindMenu("View", "Ruler").IsChecked, "View › Ruler isn't ticked");
+                FindMenu(name).IsSubmenuOpen = false;
+                await Settle(100);
+            }
+        }
+        AssertReadable(this, "Classic window");
+
+        // Narrow window: toolbars wrap instead of being cut off
+        var state = WindowState;
+        WindowState = WindowState.Normal;
+        Width = 1024;
+        await Settle(300);
+        Assert(_classicChrome.ActualHeight < 200, $"the classic toolbars take {_classicChrome.ActualHeight:0} px at 1024 px wide");
+        foreach (var wp in FindVisuals<WrapPanel>(_classicChrome))
+            foreach (FrameworkElement child in wp.Children)
+            {
+                var right = child.TranslatePoint(new Point(child.ActualWidth, 0), this).X;
+                Assert(right <= ActualWidth, $"a classic toolbar button is cut off at {ActualWidth:0} px");
+            }
+        Width = 1280;
+        WindowState = state;
+        await Settle(200);
+
+        // Back to the ribbon from the View menu
+        InvokeMenu("View", "Switch to the ribbon");
+        await Settle(200);
+        Assert(S.Interface == InterfaceStyle.Ribbon && RibbonBorder.IsVisible && TabRow.IsVisible && !_classicChrome.IsVisible, "View › Switch to the ribbon didn't switch back");
+        // ...and to Classic from the ribbon's View tab
+        UseClassic_Click(this, new RoutedEventArgs());
+        await Settle(150);
+        Assert(S.Interface == InterfaceStyle.Classic && _classicChrome.IsVisible, "View tab › Classic menus didn't switch");
+        S.Interface = InterfaceStyle.Ribbon; SettingsService.Commit(); await Settle(150);
+    }
+
     private async Task TakeScreenshots()
     {
         if (_shotDir == null) { _testLog.Add("SKIP screenshots (no folder given)"); return; }
@@ -1084,6 +1240,16 @@ public partial class MainWindow
         }
         S.ShowFormattingMarks = true; SettingsService.Commit(); await Settle(400);
         SnapshotWindow(this, "main-formatting-marks-dark");
+        S.ShowFormattingMarks = false;
+        foreach (var theme in new[] { ThemeMode.Light, ThemeMode.Dark })
+        {
+            S.Theme = theme; S.Interface = InterfaceStyle.Classic; SettingsService.Commit();
+            SetDirty(false);
+            OpenFile(formatted);
+            await Settle(500);
+            SnapshotWindow(this, $"main-classic-{theme.ToString().ToLowerInvariant()}");
+        }
+        S.Interface = InterfaceStyle.Ribbon; SettingsService.Commit(); await Settle(200);
         S.ShowFormattingMarks = false; S.Theme = ThemeMode.Light; SettingsService.Commit(); await Settle();
         Assert(Directory.GetFiles(_shotDir, "main-*.png").Length >= 4, "screenshots weren't written");
     }

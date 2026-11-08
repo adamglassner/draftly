@@ -6,7 +6,7 @@
         Title="Document - Draftly" Width="1180" Height="780" MinWidth="720" MinHeight="460"
         Icon="pack://application:,,,/Assets/draftly.ico">
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>  <!-- tab row -->
             <RowDefinition Height="Auto"/>  <!-- ribbon -->
@@ -17,7 +17,7 @@
         </Grid.RowDefinitions>
 
         <!-- ======================= TAB ROW ======================= -->
-        <DockPanel Grid.Row="0" Background="{DynamicResource ChromeBg}" Margin="0,2,0,0" LastChildFill="False">
+        <DockPanel x:Name="TabRow" Grid.Row="0" Background="{DynamicResource ChromeBg}" Margin="0,2,0,0" LastChildFill="False">
             <Button x:Name="FileButton" DockPanel.Dock="Left" Style="{StaticResource FileButton}" Content="File"
                     Click="FileButton_Click" ToolTip="New, open, save, print and settings"/>
             <RadioButton x:Name="TabHome" DockPanel.Dock="Left" Style="{StaticResource TabHeader}" Content="Home"
@@ -35,7 +35,7 @@
         </DockPanel>
 
         <!-- ======================= RIBBON ======================= -->
-        <Border Grid.Row="1" Background="{DynamicResource RibbonBg}" BorderBrush="{DynamicResource RibbonBorder}"
+        <Border x:Name="RibbonBorder" Grid.Row="1" Background="{DynamicResource RibbonBg}" BorderBrush="{DynamicResource RibbonBorder}"
                 BorderThickness="1" CornerRadius="{StaticResource RadiusLarge}" Margin="8,2,8,6">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False">
                 <Grid Height="118" Margin="4,4,4,2">
@@ -254,7 +254,11 @@
                         <Rectangle Style="{StaticResource GroupDivider}"/>
 
                         <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="More">
-                            <Button Style="{StaticResource RibbonLarge}" Tag="&#xE713;" Content="All settings" Click="Settings_Click"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE700;" Content="Classic menus" Click="UseClassic_Click"
+                                        ToolTip="Switch to a menu bar and toolbars instead of the ribbon (you can switch back in View or Settings)"/>
+                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE713;" Content="All settings" Click="Settings_Click"/>
+                            </StackPanel>
                         </HeaderedContentControl>
                     </StackPanel>
                 </Grid>

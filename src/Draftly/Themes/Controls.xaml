@@ -702,6 +702,61 @@
         </Setter>
     </Style>
 
+    <!-- ========== Classic menu bar ========== -->
+    <Style x:Key="MenuBar" TargetType="Menu">
+        <Setter Property="Background" Value="{DynamicResource ChromeBg}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}"/>
+        <Setter Property="FontSize" Value="{DynamicResource UiFontSize}"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Menu">
+                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                        <ItemsPresenter/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Top-level headers (File, Edit, ...): text only, drop-down opens below -->
+    <Style x:Key="TopMenuItem" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Grid>
+                        <Border x:Name="bd" CornerRadius="5" Padding="11,5" Margin="1,2" Background="Transparent">
+                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                        </Border>
+                        <Popup x:Name="PART_Popup" Placement="Bottom" VerticalOffset="2" IsOpen="{TemplateBinding IsSubmenuOpen}"
+                               AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                            <Border Background="{DynamicResource MenuBg}" BorderBrush="{DynamicResource ControlBorder}"
+                                    BorderThickness="1" CornerRadius="8" Padding="4" Margin="0,0,10,10">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.25"/>
+                                </Border.Effect>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.IsSharedSizeScope="True"
+                                              TextElement.Foreground="{DynamicResource Text}" TextElement.FontSize="14">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" KeyboardNavigation.TabNavigation="Cycle"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource MenuHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsSubmenuOpen" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="MenuItem">
         <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         <Setter Property="Template">

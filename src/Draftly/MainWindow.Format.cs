@@ -25,23 +25,26 @@ public partial class MainWindow
         foreach (var s in StandardSizes) FontSizeBox.Items.Add(s.ToString(CultureInfo.CurrentCulture));
     }
 
+    // The font boxes exist twice (ribbon and classic toolbar); the handlers work on whichever sent the event.
     private void FontFamilyBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_updatingUi || FontFamilyBox.SelectedItem is not FontFamily ff) return;
+        var box = (ComboBox)sender;
+        if (_updatingUi || box.SelectedItem is not FontFamily ff) return;
         // Only apply when the user picked from the list (not while typing).
-        if (!FontFamilyBox.IsDropDownOpen && FontFamilyBox.IsKeyboardFocusWithin && !Keyboard.IsKeyDown(Key.Enter)) return;
+        if (!box.IsDropDownOpen && box.IsKeyboardFocusWithin && !Keyboard.IsKeyDown(Key.Enter)) return;
         ApplyFontFamily(ff.Source);
     }
 
     private void FontFamilyBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter) { ApplyFontFamily(FontFamilyBox.Text); Editor.Focus(); e.Handled = true; }
+        var box = (ComboBox)sender;
+        if (e.Key == Key.Enter) { ApplyFontFamily(box.Text); Editor.Focus(); e.Handled = true; }
         else if (e.Key == Key.Escape) { UpdateFormattingUi(); Editor.Focus(); e.Handled = true; }
     }
 
     private void FontFamilyBox_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        if (FontFamilyBox.IsDropDownOpen) return;
+        if (((ComboBox)sender).IsDropDownOpen) return;
         if (e.NewFocus == Editor) UpdateFormattingUi();
     }
 
@@ -62,20 +65,22 @@ public partial class MainWindow
 
     private void FontSizeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_updatingUi || FontSizeBox.SelectedItem is not string s) return;
-        if (!FontSizeBox.IsDropDownOpen && FontSizeBox.IsKeyboardFocusWithin) return;
+        var box = (ComboBox)sender;
+        if (_updatingUi || box.SelectedItem is not string s) return;
+        if (!box.IsDropDownOpen && box.IsKeyboardFocusWithin) return;
         ApplyFontSizeText(s);
     }
 
     private void FontSizeBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter) { ApplyFontSizeText(FontSizeBox.Text); e.Handled = true; }
+        var box = (ComboBox)sender;
+        if (e.Key == Key.Enter) { ApplyFontSizeText(box.Text); e.Handled = true; }
         else if (e.Key == Key.Escape) { UpdateFormattingUi(); Editor.Focus(); e.Handled = true; }
     }
 
     private void FontSizeBox_LostFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        if (!FontSizeBox.IsDropDownOpen && e.NewFocus == Editor) UpdateFormattingUi();
+        if (!((ComboBox)sender).IsDropDownOpen && e.NewFocus == Editor) UpdateFormattingUi();
     }
 
     private void ApplyFontSizeText(string text)
@@ -264,18 +269,22 @@ public partial class MainWindow
     }
 
     private void TextColorDrop_Click(object sender, RoutedEventArgs e) =>
-        ShowPalette(TextColorDrop, TextPalette, "Automatic", 10, c =>
+        ShowPalette((FrameworkElement)sender, TextPalette, "Automatic", 10, c =>
         {
             _textColor = c;
-            TextColorSwatch.Fill = c.HasValue ? new SolidColorBrush(c.Value) : (Brush)FindResource("PageText");
+            var fill = c.HasValue ? new SolidColorBrush(c.Value) : (Brush)FindResource("PageText");
+            TextColorSwatch.Fill = fill;
+            if (_classicTextSwatch != null) _classicTextSwatch.Fill = fill;
             ApplyTextColor(c);
         }, allowCustom: true);
 
     private void HighlightDrop_Click(object sender, RoutedEventArgs e) =>
-        ShowPalette(HighlightDrop, HighlightPalette, "No colour", 8, c =>
+        ShowPalette((FrameworkElement)sender, HighlightPalette, "No colour", 8, c =>
         {
             _highlightColor = c;
-            HighlightSwatch.Fill = c.HasValue ? new SolidColorBrush(c.Value) : Brushes.Transparent;
+            var fill = c.HasValue ? new SolidColorBrush(c.Value) : Brushes.Transparent;
+            HighlightSwatch.Fill = fill;
+            if (_classicHighlightSwatch != null) _classicHighlightSwatch.Fill = fill;
             ApplyHighlight(c);
         }, allowCustom: false);
 
@@ -535,7 +544,7 @@ public partial class MainWindow
         var p = Editor.Selection.Start.Paragraph;
         double? cur = p != null ? GetLineSpacing(p) : null;
         bool spaceAfter = p != null && Safe(p.Margin.Bottom) > 1;
-        var menu = new ContextMenu { PlacementTarget = LineSpacingBtn, Placement = PlacementMode.Bottom };
+        var menu = new ContextMenu { PlacementTarget = sender as UIElement ?? LineSpacingBtn, Placement = PlacementMode.Bottom };
         foreach (var f in ParagraphDialog.Spacings)
         {
             var factor = f;
@@ -651,6 +660,7 @@ public partial class MainWindow
 
             QuickUndo.IsEnabled = Editor.CanUndo;
             QuickRedo.IsEnabled = Editor.CanRedo;
+            UpdateClassicUi();
         }
         finally { _updatingUi = false; }
     }

@@ -165,6 +165,22 @@ public sealed class SettingsWindow : Window
     {
         var sp = new StackPanel();
 
+        sp.Children.Add(H("Interface"));
+        var styles = new StackPanel { Orientation = Orientation.Horizontal };
+        foreach (var (style, label, glyph) in new[] { (InterfaceStyle.Ribbon, "Ribbon", "\uE8A9"), (InterfaceStyle.Classic, "Classic menus and toolbars", "\uE700") })
+        {
+            var t = new System.Windows.Controls.Primitives.ToggleButton
+            {
+                Style = (Style)FindResource("RibbonSmallToggle"), Tag = glyph, Content = label,
+                IsChecked = S.Interface == style, Height = 44, Padding = new Thickness(14, 0, 16, 0), Margin = new Thickness(0, 0, 8, 0),
+            };
+            t.SetResourceReference(BorderBrushProperty, "ControlBorder");
+            t.Click += (_, _) => { S.Interface = style; Changed(); ShowPage("Appearance"); };
+            styles.Children.Add(t);
+        }
+        sp.Children.Add(styles);
+        sp.Children.Add(Hint("Ribbon has Home and View tabs like WordPad in Windows 10 and 11. Classic has a menu bar (File, Edit, View, Insert, Format, Help) with a standard toolbar and a formatting toolbar, like older WordPad and Word. Both have every command."));
+
         sp.Children.Add(H("Theme"));
         var themes = new StackPanel { Orientation = Orientation.Horizontal };
         foreach (var (mode, label, glyph) in new[] { (ThemeMode.Light, "Light", ""), (ThemeMode.Dark, "Dark", ""), (ThemeMode.System, "Follow system", "") })
@@ -211,7 +227,7 @@ public sealed class SettingsWindow : Window
 
         sp.Children.Add(H("Toolbar and text size"));
         sp.Children.Add(Card(
-            Setting("Show labels on small toolbar buttons", "Turn off for a more compact toolbar.",
+            Setting("Show labels on small ribbon buttons", "Turn off for a more compact ribbon. Narrow windows hide them automatically.",
                 Toggle(S.ShowRibbonLabels, v => S.ShowRibbonLabels = v)),
             Line(),
             Setting("Interface text size", "Size of menus, dialogs and labels. Doesn't change your document.",

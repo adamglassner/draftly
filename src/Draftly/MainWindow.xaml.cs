@@ -151,6 +151,7 @@ public partial class MainWindow : Window
             ThemeSystemBtn.IsChecked = S.Theme == ThemeMode.System;
 
             UpdateRibbonDensity();
+            ApplyInterfaceStyle();
             Editor.SpellCheck.IsEnabled = S.SpellCheck;
             Editor.AutoWordSelection = S.SelectWholeWords;
             Ruler.Unit = S.Units;
