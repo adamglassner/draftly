@@ -1,0 +1,149 @@
+name: Build, test and release
+
+# - Every push / pull request: build the exe, portable zip and installer on Windows,
+#   run Draftly's self-test, test the installer and take screenshots.
+# - Push a tag like v1.0.0: the same, then publish GitHub Release v1.0.0 with the
+#   Setup .exe and the portable zip. The Bytehawk Studio Launcher reads this repo's
+#   latest release to install and update Draftly.
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Work out version
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $v = $env:GITHUB_REF_NAME.Substring(1)
+          } else {
+            $v = ([xml](Get-Content src/Draftly/Draftly.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version $v"
+
+      - name: Install Inno Setup if needed
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+
+      - name: Build exe, zip and installer
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'build.log'
+          $ok = $true
+          try { ./build.ps1 -Version ${{ steps.ver.outputs.version }} *>&1 | Tee-Object -FilePath $log } catch { $ok = $false; "$_" | Add-Content $log }
+          if (-not $ok -or $LASTEXITCODE -ne 0) {
+            $errs = Select-String -Path $log -Pattern ': error |error MSB|failed|exception' | Select-Object -First 60
+            if (-not $errs) { $errs = Get-Content $log -Tail 40 }
+            foreach ($e in $errs) { Write-Host "::error::$(($e -replace '%','%25') -replace '\r?\n',' ')" }
+            exit 1
+          }
+
+      - name: Self-test
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force screenshots | Out-Null
+          $out = Join-Path $env:RUNNER_TEMP 'selftest.txt'
+          $shots = Join-Path $PWD 'screenshots'
+          $p = Start-Process dist/Draftly.exe -ArgumentList '--self-test', "`"$out`"", "`"$shots`"" -PassThru
+          if (-not $p.WaitForExit(300000)) { Stop-Process -Id $p.Id -Force; Write-Host '::error::Self-test timed out' }
+          if (Test-Path $out) { $lines = Get-Content $out; $lines | Write-Host } else { $lines = @('(no output file)') }
+          "## Self-test`n``````n$($lines -join "`n")`n``````" >> $env:GITHUB_STEP_SUMMARY
+          foreach ($l in $lines | Where-Object { $_ -like 'FAIL*' }) { Write-Host "::error::$(($l -replace '%','%25') -replace '\r?\n',' ')" }
+          $err = Join-Path $env:APPDATA 'Draftly\error.log'
+          if (Test-Path $err) { Get-Content $err | Write-Host; Write-Host '::error::error.log was written' ; exit 1 }
+          if ($p.ExitCode -ne 0) { throw "Self-test failed (exit code $($p.ExitCode))" }
+
+      - name: Installer test (silent install, run, uninstall)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist/Draftly-*-Setup.exe | Select-Object -First 1
+          # 1. Default install: Program Files, all users (the runner is an administrator)
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/TASKS=desktopicon,assocrtf' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Setup exited with $($p.ExitCode)" }
+          $exe = Join-Path $env:ProgramFiles 'Draftly\Draftly.exe'
+          if (-not (Test-Path $exe)) { throw 'Draftly.exe not installed to Program Files' }
+          $lnk = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Draftly.lnk'
+          if (-not (Test-Path $lnk)) { throw 'Start Menu shortcut missing' }
+          $sh = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+          if ($sh.TargetPath -ne $exe) { throw "Start Menu shortcut points to $($sh.TargetPath)" }
+          if (-not (Test-Path (Join-Path $env:PUBLIC 'Desktop\Draftly.lnk'))) { throw 'Desktop shortcut missing' }
+          $key = Get-ChildItem 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | Get-ItemProperty | Where-Object { $_.DisplayName -like 'Draftly*' } | Select-Object -First 1
+          if (-not $key) { throw 'No uninstall entry' }
+          Write-Host "Uninstall entry: $($key.DisplayName) / $($key.DisplayVersion) / $($key.Publisher)"
+          if ($key.DisplayVersion -ne '${{ steps.ver.outputs.version }}') { throw "Wrong version in Apps: $($key.DisplayVersion)" }
+          if ($key.Publisher -ne 'Bytehawk Studio') { throw "Wrong publisher: $($key.Publisher)" }
+          if (-not (Get-ItemProperty 'HKLM:\Software\Classes\.rtf\OpenWithProgids' -Name 'Draftly.rtf' -ErrorAction SilentlyContinue)) { throw '.rtf association missing' }
+          Add-Type -AssemblyName System.Drawing
+          $ico = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+          if (-not $ico) { throw 'No icon in Draftly.exe' }
+          New-Item -ItemType Directory -Force screenshots | Out-Null
+          $ico.ToBitmap().Save((Join-Path $PWD 'screenshots/exe-icon.png'))
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($app.HasExited) { throw "Installed app exited during startup ($($app.ExitCode))" }
+          Stop-Process -Id $app.Id -Force
+          Start-Sleep -Seconds 2
+          $u = Start-Process (Join-Path $env:ProgramFiles 'Draftly\unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          Start-Sleep -Seconds 4
+          if (Test-Path $exe) { throw 'Uninstall left Draftly.exe behind' }
+          if (Test-Path $lnk) { throw 'Uninstall left the Start Menu shortcut behind' }
+          if (Get-ItemProperty 'HKLM:\Software\Classes\.rtf\OpenWithProgids' -Name 'Draftly.rtf' -ErrorAction SilentlyContinue) { throw 'Uninstall left the .rtf association behind' }
+          # 2. Launcher-style install into a custom folder, no shortcuts
+          $dir = Join-Path $env:RUNNER_TEMP 'draftly-launcher'
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/NOICONS', "/DIR=`"$dir`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Launcher-style setup exited with $($p.ExitCode)" }
+          if (-not (Test-Path (Join-Path $dir 'Draftly.exe'))) { throw 'Launcher-style install missing Draftly.exe' }
+          Start-Process (Join-Path $dir 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait | Out-Null
+          Start-Sleep -Seconds 3
+          if (Test-Path (Join-Path $dir 'Draftly.exe')) { throw 'Launcher-style uninstall left Draftly.exe behind' }
+          "## Installer test`n- Program Files install, Start Menu + desktop shortcuts, uninstall entry (v${{ steps.ver.outputs.version }}, Bytehawk Studio), .rtf association, icon, start, clean uninstall: OK`n- Launcher-style silent install to a custom folder and uninstall: OK" >> $env:GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Draftly-${{ steps.ver.outputs.version }}
+          path: |
+            dist/Draftly-*-Setup.exe
+            dist/Draftly-*-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          make_latest: true
+          name: Draftly ${{ steps.ver.outputs.version }}
+          body: |
+            Draftly ${{ steps.ver.outputs.version }}, a modern rich text word processor for Windows 10/11 (x64), by Bytehawk Studio.
+
+            - **Draftly-${{ steps.ver.outputs.version }}-Setup.exe**: installer. Installs to Program Files with a Start Menu shortcut, an optional desktop shortcut, optional .rtf/.txt file types and an uninstaller. Choose "Install for me only" on the first page if you don't have administrator rights.
+            - **Draftly-${{ steps.ver.outputs.version }}-win-x64.zip**: portable. Unzip and run `Draftly.exe`. No install or .NET needed.
+
+            Also available in the **Bytehawk Studio Launcher**, which installs Draftly and keeps it up to date.
+          files: |
+            dist/Draftly-*-Setup.exe
+            dist/Draftly-*-win-x64.zip

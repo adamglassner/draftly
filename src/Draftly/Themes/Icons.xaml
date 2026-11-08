@@ -1,0 +1,23 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Original line-art paragraph icons (16x16), drawn as strokes in the button's text colour -->
+    <Geometry x:Key="GeoAlignLeft">M1,2.5 H15 M1,6.5 H10 M1,10.5 H15 M1,14.5 H10</Geometry>
+    <Geometry x:Key="GeoAlignCenter">M1,2.5 H15 M4,6.5 H12 M1,10.5 H15 M4,14.5 H12</Geometry>
+    <Geometry x:Key="GeoAlignRight">M1,2.5 H15 M6,6.5 H15 M1,10.5 H15 M6,14.5 H15</Geometry>
+    <Geometry x:Key="GeoJustify">M1,2.5 H15 M1,6.5 H15 M1,10.5 H15 M1,14.5 H15</Geometry>
+    <Geometry x:Key="GeoIndentMore">M1,2.5 H15 M7,6.5 H15 M7,10.5 H15 M1,14.5 H15 M1,5.5 L4,8.5 L1,11.5</Geometry>
+    <Geometry x:Key="GeoIndentLess">M1,2.5 H15 M7,6.5 H15 M7,10.5 H15 M1,14.5 H15 M4,5.5 L1,8.5 L4,11.5</Geometry>
+    <Geometry x:Key="GeoLineSpacing">M7,3.5 H15 M7,8.5 H15 M7,13.5 H15 M3,1.5 V15.5 M1,3.5 L3,1.5 L5,3.5 M1,13.5 L3,15.5 L5,13.5</Geometry>
+    <Geometry x:Key="GeoNumberLines">M7,3.5 H15 M7,8.5 H15 M7,13.5 H15</Geometry>
+
+    <Style x:Key="LineIcon" TargetType="Path">
+        <Setter Property="Width" Value="16"/>
+        <Setter Property="Height" Value="17"/>
+        <Setter Property="StrokeThickness" Value="1.5"/>
+        <Setter Property="StrokeStartLineCap" Value="Round"/>
+        <Setter Property="StrokeEndLineCap" Value="Round"/>
+        <Setter Property="StrokeLineJoin" Value="Round"/>
+        <Setter Property="Stroke" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Control}}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+</ResourceDictionary>
