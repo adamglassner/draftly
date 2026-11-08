@@ -75,7 +75,7 @@ Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; The icon is embedded in Draftly.exe, so shortcuts use the exe's own icon.
 ; Straight into the Start menu's app list (no subfolder), like other Windows 10/11 apps.
 ; /NOICONS (used by the Bytehawk Studio Launcher) skips it.
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Write and edit documents"; Check: not WizardNoIcons
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Write and edit documents"; Check: not NoIconsRequested
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Write and edit documents"; Tasks: desktopicon
 
 [Registry]
@@ -112,3 +112,16 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 
 ; No [UninstallDelete]: uninstalling removes the program, shortcuts and registry entries.
 ; Your documents and settings (%APPDATA%\Draftly) are left alone.
+
+[Code]
+{ /NOICONS: the launcher installs Draftly without Start menu entries. Inno Setup only honours it
+  on the Start Menu folder page, which Draftly doesn't show, so check the command line directly. }
+function NoIconsRequested: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/NOICONS') = 0 then
+      Result := True;
+end;
