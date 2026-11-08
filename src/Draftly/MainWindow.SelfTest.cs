@@ -704,7 +704,8 @@ public partial class MainWindow
         // RTF as WordPad / Word write it: \sub, \super, \nosupersub, \up and \dn, plus a field and a font table.
         const string rtf = @"{\rtf1\ansi\deff0{\fonttbl{\f0\fswiss Calibri;}{\f1 Cambria Math;}}{\colortbl ;\red0\green0\blue255;}" +
             @"{\*\generator Riched20 10.0.22621}\viewkind4\uc1\pard\f0\fs22 Water is H{\sub 2}O. E=mc\super 2\nosupersub  and x\up6 n\up0  and y\dn6 i\dn0  done.\par" +
-            @"{\b Bold \cf1 blue\cf0} and \u8364? euro.\par}";
+            @"{\b Bold \cf1 blue\cf0} and \u8364? euro.\par" +
+            @"\pard\sl360\slmult1 Spaced one.\par Spaced two.\par\pard Single again.\par}";
         var path = Path.Combine(_testDir, "wordpad.rtf");
         File.WriteAllText(path, rtf, Encoding.ASCII);
         SetDirty(false);
@@ -726,6 +727,12 @@ public partial class MainWindow
         Check("2", 2, BaselineAlignment.Superscript);
         Check("n", 2, BaselineAlignment.Superscript);   // 1st n is in "and"
         Check("O", 1, BaselineAlignment.Baseline);
+        foreach (var (para, want) in new[] { ("Spaced one.", 1.5), ("Spaced two.", 1.5), ("Single again.", 1.0) })
+        {
+            SelectFirst(para);
+            var got = GetLineSpacing(Editor.Selection.Start.Paragraph);
+            Assert(got.HasValue && Math.Abs(got.Value - want) < 0.12, $"\"{para}\" has line spacing {got}, expected {want}");
+        }
         SelectFirst("blue");
         Assert(Prop(TextElement.ForegroundProperty) is SolidColorBrush blue && blue.Color == Color.FromRgb(0, 0, 255), "colour from WordPad RTF lost");
         Assert(Prop(TextElement.FontWeightProperty) is FontWeight w && w == FontWeights.Bold, "bold from WordPad RTF lost");

@@ -6,7 +6,8 @@ using System.Windows.Documents;
 namespace Draftly.Services;
 
 /// <summary>
-/// WPF's RTF writer and reader ignore subscript and superscript (RTF \sub, \super, \dn, \up).
+/// WPF's RTF writer and reader ignore subscript and superscript (RTF \sub, \super, \dn, \up), and
+/// WPF's reader ignores paragraph line spacing (\sl, \slmult).
 /// This fills the gap: on save, sub/superscript runs are tagged in a scratch copy and the tags are
 /// turned into \sub / \super; on open or paste, those RTF codes are turned into tags that are then
 /// applied as BaselineAlignment. The result reads and writes the same as WordPad and Word.
@@ -15,6 +16,7 @@ public static class RtfBaseline
 {
     private const string SubStart = "@@DSUB<@@", SubEnd = "@@DSUB>@@", SupStart = "@@DSUP<@@", SupEnd = "@@DSUP>@@";
     private const string MarkerPrefix = "@@DSU";
+    private const string SpacingPrefix = "@@DSL";   // @@DSL<twips>,<mult>@@ : paragraph line spacing (\\sl, \\slmult)
     private const int MarkerLength = 9;
 
     // ------------------------------------------------------------------ save
@@ -99,12 +101,14 @@ public static class RtfBaseline
     public static string PrepareForLoad(string rtf)
     {
         if (rtf.IndexOf("\\sub", StringComparison.Ordinal) < 0 && rtf.IndexOf("\\super", StringComparison.Ordinal) < 0 &&
-            rtf.IndexOf("\\dn", StringComparison.Ordinal) < 0 && rtf.IndexOf("\\up", StringComparison.Ordinal) < 0)
+            rtf.IndexOf("\\dn", StringComparison.Ordinal) < 0 && rtf.IndexOf("\\up", StringComparison.Ordinal) < 0 &&
+            rtf.IndexOf("\\sl", StringComparison.Ordinal) < 0)
             return rtf;
 
         var sb = new StringBuilder(rtf.Length + 256);
-        var stack = new Stack<(int State, bool Dest)>();
+        var stack = new Stack<(int State, bool Dest, string Spacing)>();
         int state = 0;          // 0 normal, 1 subscript, 2 superscript
+        string spacing = null;  // current paragraph line spacing as "twips,mult", or null for single
         bool dest = false;      // inside a group that isn't body text
         bool groupStart = false;
         int i = 0, n = rtf.Length;
@@ -143,6 +147,31 @@ public static class RtfBaseline
                         i = end + take;
                         continue;
                     }
+                    if (!dest && word == "sl")
+                    {
+                        // \slN is usually followed by \slmultM
+                        string mult = "0";
+                        if (string.CompareOrdinal(rtf, end, "\\slmult", 0, 7) == 0)
+                        {
+                            int q = end + 7, q0 = q;
+                            while (q < n && char.IsDigit(rtf[q])) q++;
+                            mult = q > q0 ? rtf.Substring(q0, q - q0) : "1";
+                            end = q < n && rtf[q] == ' ' ? q + 1 : q;
+                        }
+                        spacing = param.Length == 0 || param == "0" ? null : param + "," + mult;
+                        if (spacing != null) sb.Append(SpacingPrefix).Append(spacing).Append("@@");
+                        i = end;
+                        continue;
+                    }
+                    if (!dest && word == "pard") spacing = null;
+                    if (!dest && word == "par")
+                    {
+                        sb.Append(rtf, i, end - i);
+                        i = end;
+                        // Spacing carries on to the next paragraph until \pard resets it.
+                        if (spacing != null) sb.Append(SpacingPrefix).Append(spacing).Append("@@");
+                        continue;
+                    }
                     if (!dest)
                     {
                         int? next = word switch
@@ -172,7 +201,7 @@ public static class RtfBaseline
             }
             if (c == '{')
             {
-                stack.Push((state, dest));
+                stack.Push((state, dest, spacing));
                 sb.Append('{');
                 groupStart = true;
                 i++;
@@ -180,12 +209,13 @@ public static class RtfBaseline
             }
             if (c == '}')
             {
-                var (parentState, parentDest) = stack.Count > 0 ? stack.Pop() : (0, false);
+                var (parentState, parentDest, parentSpacing) = stack.Count > 0 ? stack.Pop() : (0, false, null);
                 if (!dest && state != parentState) Close(state);
                 sb.Append('}');
                 if (!parentDest && state != parentState) Open(parentState);
                 state = parentState;
                 dest = parentDest;
+                spacing = parentSpacing;
                 groupStart = false;
                 i++;
                 continue;
@@ -197,22 +227,42 @@ public static class RtfBaseline
         return sb.ToString();
     }
 
-    /// <summary>Turns the text tags left by PrepareForLoad into real sub/superscript, and removes them.</summary>
+    /// <summary>Turns the text tags left by PrepareForLoad into real formatting, and removes them.</summary>
     public static void ApplyMarkers(FlowDocument doc)
     {
-        var hits = new List<(TextPointer Start, TextPointer End, int Kind)>();
+        // Kind: 1/-1 subscript start/end, 2/-2 superscript start/end, 3 line spacing.
+        var hits = new List<(TextPointer Start, TextPointer End, int Kind, Paragraph Para, int Twips, int Mult)>();
         foreach (var run in DocumentService.Walk(doc.Blocks).OfType<Run>().ToList())
         {
             var t = run.Text;
-            int idx = t.IndexOf(MarkerPrefix, StringComparison.Ordinal);
-            while (idx >= 0 && idx + MarkerLength <= t.Length)
+            int idx = t.IndexOf("@@DS", StringComparison.Ordinal);
+            while (idx >= 0)
             {
-                var m = t.Substring(idx, MarkerLength);
-                int kind = m == SubStart ? 1 : m == SubEnd ? -1 : m == SupStart ? 2 : m == SupEnd ? -2 : 0;
+                int len = 0, kind = 0, twips = 0, mult = 0;
+                if (string.CompareOrdinal(t, idx, MarkerPrefix, 0, MarkerPrefix.Length) == 0 && idx + MarkerLength <= t.Length)
+                {
+                    var m = t.Substring(idx, MarkerLength);
+                    kind = m == SubStart ? 1 : m == SubEnd ? -1 : m == SupStart ? 2 : m == SupEnd ? -2 : 0;
+                    len = MarkerLength;
+                }
+                else if (string.CompareOrdinal(t, idx, SpacingPrefix, 0, SpacingPrefix.Length) == 0)
+                {
+                    int close = t.IndexOf("@@", idx + SpacingPrefix.Length, StringComparison.Ordinal);
+                    var parts = close > 0 ? t.Substring(idx + SpacingPrefix.Length, close - idx - SpacingPrefix.Length).Split(',') : Array.Empty<string>();
+                    if (parts.Length == 2 && int.TryParse(parts[0], out twips) && int.TryParse(parts[1], out mult))
+                    {
+                        kind = 3;
+                        len = close + 2 - idx;
+                    }
+                }
                 if (kind != 0)
+                {
                     hits.Add((run.ContentStart.GetPositionAtOffset(idx, LogicalDirection.Backward),
-                              run.ContentStart.GetPositionAtOffset(idx + MarkerLength, LogicalDirection.Forward), kind));
-                idx = t.IndexOf(MarkerPrefix, idx + MarkerLength, StringComparison.Ordinal);
+                              run.ContentStart.GetPositionAtOffset(idx + len, LogicalDirection.Forward), kind,
+                              run.ContentStart.Paragraph, twips, mult));
+                    idx = t.IndexOf("@@DS", idx + len, StringComparison.Ordinal);
+                }
+                else idx = t.IndexOf("@@DS", idx + 4, StringComparison.Ordinal);
             }
         }
         if (hits.Count == 0) return;
@@ -220,17 +270,43 @@ public static class RtfBaseline
         var spans = new List<(TextPointer From, TextPointer To, BaselineAlignment Value)>();
         for (int a = 0; a < hits.Count; a++)
         {
-            if (hits[a].Kind <= 0) continue;
+            if (hits[a].Kind is not (1 or 2)) continue;
             int b = hits.FindIndex(a + 1, h => h.Kind == -hits[a].Kind);
             if (b < 0) continue;
             spans.Add((hits[a].End, hits[b].Start, hits[a].Kind == 1 ? BaselineAlignment.Subscript : BaselineAlignment.Superscript));
         }
 
-        // Remove the tags (last first), then apply the formatting between them.
+        // Remove the tags (last first), then apply the formatting they stood for.
         for (int a = hits.Count - 1; a >= 0; a--)
             new TextRange(hits[a].Start, hits[a].End).Text = "";
         foreach (var (from, to, value) in spans)
             if (from.CompareTo(to) < 0)
                 new TextRange(from, to).ApplyPropertyValue(Inline.BaselineAlignmentProperty, value);
+        foreach (var h in hits.Where(h => h.Kind == 3 && h.Para != null))
+            ApplySpacing(h.Para, h.Twips, h.Mult);
+    }
+
+    /// <summary>Applies RTF \slN\slmultM to a paragraph, the same way Draftly's own line spacing works.</summary>
+    private static void ApplySpacing(Paragraph p, int twips, int mult)
+    {
+        if (mult == 1)
+        {
+            double factor = twips / 240.0;
+            if (Math.Abs(factor - 1) < 0.01 || factor <= 0) { p.ClearValue(Block.LineHeightProperty); return; }
+            double size = p.FontSize;
+            foreach (var i in p.Inlines) if (i.FontSize > size) size = i.FontSize;
+            p.LineStackingStrategy = LineStackingStrategy.MaxHeight;
+            p.LineHeight = size * 1.17 * factor;
+        }
+        else if (twips > 0)
+        {
+            p.LineStackingStrategy = LineStackingStrategy.MaxHeight;      // "at least"
+            p.LineHeight = twips / 15.0;
+        }
+        else if (twips < 0)
+        {
+            p.LineStackingStrategy = LineStackingStrategy.BlockLineHeight; // "exactly"
+            p.LineHeight = -twips / 15.0;
+        }
     }
 }
