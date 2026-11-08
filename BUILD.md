@@ -53,8 +53,9 @@ GitHub runs this on every push, along with an installer test: install to Program
 
 ## Releasing a new version
 
-1. Change `<Version>` (and `<AssemblyVersion>`, `<FileVersion>`) in `src\Draftly\Draftly.csproj`, e.g. to `1.0.1`.
-2. Push to `main`.
+1. Change `<Version>` (and `<InformationalVersion>`, `<AssemblyVersion>`, `<FileVersion>`) in `src\Draftly\Draftly.csproj`, and `MyAppVersion` in `installer\Draftly.iss`, e.g. to `1.0.1`.
+2. Add a `## 1.0.1 - <date>` section at the top of `CHANGELOG.md`. The release notes and Settings › About › What's new come from it, and the release stops if it's missing.
+3. Push to `main`.
 
 GitHub then builds and tests it. If every test passes and there's no `v1.0.1` release yet, it publishes Release v1.0.1 with the Setup .exe and portable zip (pushing a tag like `v1.0.1` does the same). The Bytehawk Studio Launcher picks up the new version from there.
 

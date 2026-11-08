@@ -434,6 +434,16 @@ public sealed class SettingsWindow : Window
         var repo = new Button { Content = "Draftly on GitHub", Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left };
         repo.Click += (_, _) => { try { Process.Start(new ProcessStartInfo("https://github.com/adamglassner/draftly") { UseShellExecute = true }); } catch { } };
         sp.Children.Add(repo);
+        var whatsNew = WhatsNew($"{v.Major}.{v.Minor}.{v.Build}");
+        if (whatsNew != null)
+        {
+            sp.Children.Add(H($"What's new in {v.Major}.{v.Minor}.{v.Build}"));
+            sp.Children.Add(whatsNew);
+            var log = new Button { Content = "Full changelog", Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left };
+            log.Click += (_, _) => { try { Process.Start(new ProcessStartInfo("https://github.com/adamglassner/draftly/blob/main/CHANGELOG.md") { UseShellExecute = true }); } catch { } };
+            sp.Children.Add(log);
+        }
+        sp.Children.Add(H("About"));
         sp.Children.Add(Card(
             new TextBlock { Text = "File formats", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) },
             Hint("Opens and saves Rich Text (.rtf) and plain text (.txt). Opens Word (.docx) documents for reading and editing; save them as .rtf or .txt."),
@@ -441,5 +451,47 @@ public sealed class SettingsWindow : Window
             Hint("Word import uses the Open XML SDK by Microsoft (MIT licence). Built with .NET 8 and WPF.")));
         sp.Children.Add(Hint($"© 2026 Bytehawk Studio. Running on {Environment.OSVersion.VersionString}."));
         return sp;
+    }
+
+    /// <summary>The CHANGELOG.md section for this version (embedded in the exe), as a card.</summary>
+    internal static Border WhatsNew(string version)
+    {
+        string text;
+        try
+        {
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("CHANGELOG.md");
+            if (stream == null) return null;
+            using var reader = new System.IO.StreamReader(stream);
+            text = reader.ReadToEnd();
+        }
+        catch { return null; }
+
+        var lines = text.Replace("\r", "").Split('\n');
+        int start = Array.FindIndex(lines, l => l.StartsWith("## " + version + " ") || l.Trim() == "## " + version);
+        if (start < 0) return null;
+        var panel = new StackPanel();
+        for (int i = start + 1; i < lines.Length && !lines[i].StartsWith("## "); i++)
+        {
+            var line = lines[i].Trim();
+            if (line.Length == 0) continue;
+            string Plain(string s) => s.Replace("**", "").Replace("`", "");
+            if (line.StartsWith("### "))
+                panel.Children.Add(new TextBlock { Text = Plain(line[4..]), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, panel.Children.Count == 0 ? 0 : 8, 0, 4) });
+            else if (line.StartsWith("- "))
+            {
+                var row = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
+                var dot = new TextBlock { Text = "•", Margin = new Thickness(2, 0, 8, 0) };
+                DockPanel.SetDock(dot, Dock.Left);
+                row.Children.Add(dot);
+                row.Children.Add(new TextBlock { Text = Plain(line[2..]), TextWrapping = TextWrapping.Wrap });
+                panel.Children.Add(row);
+            }
+            else
+                panel.Children.Add(new TextBlock { Text = Plain(line), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2) });
+        }
+        if (panel.Children.Count == 0) return null;
+        var card = new Border { Child = panel };
+        card.SetResourceReference(StyleProperty, "Card");
+        return card;
     }
 }

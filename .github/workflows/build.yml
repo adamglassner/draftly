@@ -141,6 +141,26 @@ jobs:
           path: screenshots/
           if-no-files-found: ignore
 
+      - name: Release notes from CHANGELOG.md
+        if: steps.ver.outputs.release == 'true'
+        shell: pwsh
+        run: |
+          $v = '${{ steps.ver.outputs.version }}'
+          $lines = Get-Content CHANGELOG.md
+          $start = [Array]::FindIndex($lines, [Predicate[string]]{ param($l) $l -match "^## $([regex]::Escape($v))( |$)" })
+          if ($start -lt 0) { throw "CHANGELOG.md has no '## $v' section. Add one before releasing." }
+          $section = @()
+          for ($i = $start + 1; $i -lt $lines.Count -and $lines[$i] -notmatch '^## '; $i++) { $section += $lines[$i] }
+          $notes = @(
+            "Draftly $v, a modern rich text word processor for Windows 10/11 (x64), by Bytehawk Studio.", '',
+            "## What's new", ($section -join "`n").Trim(), '',
+            '## Downloads',
+            "- **Draftly-$v-Setup.exe**: installer. Installs to Program Files with a Start Menu shortcut, an optional desktop shortcut, optional .rtf/.txt file types and an uninstaller. Choose ""Install for me only"" on the first page if you don't have administrator rights.",
+            "- **Draftly-$v-win-x64.zip**: portable. Unzip and run ``Draftly.exe``. No install or .NET needed.", '',
+            'Also available in the **Bytehawk Studio Launcher**, which installs Draftly and keeps it up to date.', '',
+            'Full history: [CHANGELOG.md](https://github.com/adamglassner/draftly/blob/main/CHANGELOG.md)')
+          $notes -join "`n" | Set-Content -Encoding utf8 (Join-Path $env:RUNNER_TEMP 'release-notes.md')
+
       - name: Publish GitHub Release
         if: steps.ver.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
@@ -149,13 +169,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           make_latest: true
           name: Draftly ${{ steps.ver.outputs.version }}
-          body: |
-            Draftly ${{ steps.ver.outputs.version }}, a modern rich text word processor for Windows 10/11 (x64), by Bytehawk Studio.
-
-            - **Draftly-${{ steps.ver.outputs.version }}-Setup.exe**: installer. Installs to Program Files with a Start Menu shortcut, an optional desktop shortcut, optional .rtf/.txt file types and an uninstaller. Choose "Install for me only" on the first page if you don't have administrator rights.
-            - **Draftly-${{ steps.ver.outputs.version }}-win-x64.zip**: portable. Unzip and run `Draftly.exe`. No install or .NET needed.
-
-            Also available in the **Bytehawk Studio Launcher**, which installs Draftly and keeps it up to date.
+          body_path: ${{ runner.temp }}/release-notes.md
           files: |
             dist/Draftly-*-Setup.exe
             dist/Draftly-*-win-x64.zip

@@ -41,6 +41,10 @@ Get **Draftly-x.y.z-Setup.exe** (installer) or the portable **.zip** from [Relea
 
 Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S/F12 (Save as), Ctrl+P, Ctrl+F2 (Print preview), Ctrl+Z, Ctrl+Y, Ctrl+X, Ctrl+C, Ctrl+V, Ctrl+Alt+V (Paste special), Ctrl+A, Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+F, Ctrl+H, F3/Shift+F3, Ctrl+L/E/R/J (align), Ctrl+1/2/5 (line spacing), Ctrl+Shift+L (bullets), Ctrl+Enter (page break), Ctrl+wheel (zoom), Ctrl+, (Settings).
 
+## What's new
+
+See [CHANGELOG.md](CHANGELOG.md). The current version's notes are also in Draftly under Settings › About.
+
 ## Building
 
 See [BUILD.md](BUILD.md).

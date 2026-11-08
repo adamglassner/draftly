@@ -116,7 +116,8 @@ public partial class MainWindow
         await Test("Paragraph indent and spacing", ParagraphSettingsWork);
         await Test("Settings are saved and reloaded", SettingsPersist);
         await Test("Every dialog opens in Light and Dark", DialogsOpen);
-        await Test("Toolbar fits a 1024-pixel-wide screen", RibbonFits);
+        await Test("Toolbar fits a 1024-pixel-wide screen and large buttons line up", RibbonFits);
+        await Test("What's new (changelog) is built in", () => Assert(Dialogs.SettingsWindow.WhatsNew("1.1.1") != null, "CHANGELOG.md section for 1.1.1 missing from the exe"));
         await Test("Classic interface: menus, toolbars and switching back", ClassicInterfaceWorks);
         await Test("Screenshots", TakeScreenshots);
 
@@ -1050,6 +1051,19 @@ public partial class MainWindow
         return null;
     }
 
+    /// <summary>All large ribbon buttons are the same height and their icons sit on one line.</summary>
+    private void AssertLargeButtonsLineUp(Panel panel, string where)
+    {
+        var style = (Style)FindResource("RibbonLarge");
+        var buttons = FindVisuals<Button>(panel).Where(b => b.Style == style && b.IsVisible).ToList();
+        Assert(buttons.Count >= 3, $"{where} tab: found only {buttons.Count} large buttons");
+        var tops = buttons.Select(b => (b, Icon: FindVisuals<TextBlock>(b).First())).Select(x => (Name: (string)x.b.Content,
+            IconY: x.Icon.TranslatePoint(new Point(0, x.Icon.ActualHeight / 2), panel).Y, Height: x.b.ActualHeight)).ToList();
+        double minY = tops.Min(t => t.IconY), maxY = tops.Max(t => t.IconY);
+        Assert(maxY - minY < 1, $"{where} tab: large button icons aren't level: " + string.Join(", ", tops.Select(t => $"{t.Name.Replace("\n", " ")} {t.IconY:0.0}")));
+        Assert(tops.Max(t => t.Height) - tops.Min(t => t.Height) < 1, $"{where} tab: large buttons have different heights: " + string.Join(", ", tops.Select(t => $"{t.Name} {t.Height:0}")));
+    }
+
     private async Task RibbonFits()
     {
         var oldState = WindowState;
@@ -1063,6 +1077,7 @@ public partial class MainWindow
             var panel = tab == TabHome ? HomePanel : ViewPanel;
             var scroller = FindVisuals<ScrollViewer>(this).First(sv => sv.Content is Grid g && g.Children.Contains(panel));
             Assert(panel.ActualWidth <= scroller.ViewportWidth + 1, $"{tab.Content} tab is {panel.ActualWidth:0} px wide but only {scroller.ViewportWidth:0} px fit");
+            AssertLargeButtonsLineUp(panel, (string)tab.Content);
         }
         TabHome.IsChecked = true;
         Width = 1280; Height = 820;

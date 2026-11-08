@@ -266,19 +266,27 @@
     </Style>
 
     <!-- Large ribbon button: glyph (Tag) above label (Content) -->
+    <!-- Every large button has the same shape: an icon row, then room for a two-line label.
+         So icons always line up, even when one label wraps ("Date and time"). -->
     <Style x:Key="RibbonLarge" TargetType="Button" BasedOn="{StaticResource FlatBase}">
         <Setter Property="MinWidth" Value="56"/>
         <Setter Property="Padding" Value="4,6,4,4"/>
-        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Top"/>
         <Setter Property="ContentTemplate">
             <Setter.Value>
                 <DataTemplate>
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource Icon}" FontSize="26" Margin="0,2,0,6"
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="34"/>
+                            <RowDefinition Height="36"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Style="{StaticResource Icon}" FontSize="26" VerticalAlignment="Center"
                                    Foreground="{DynamicResource Accent}"
                                    Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                        <TextBlock Text="{Binding}" TextAlignment="Center" FontSize="13" TextWrapping="Wrap" MaxWidth="72"/>
-                    </StackPanel>
+                        <TextBlock Grid.Row="1" Text="{Binding}" TextAlignment="Center" FontSize="13" TextWrapping="Wrap"
+                                   MaxWidth="72" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                    </Grid>
                 </DataTemplate>
             </Setter.Value>
         </Setter>
