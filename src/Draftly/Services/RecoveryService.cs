@@ -35,8 +35,9 @@ public static class RecoveryService
         {
             Directory.CreateDirectory(Folder);
             var tmp = RtfPath + ".tmp";
-            using (var fs = File.Create(tmp))
-                DocumentService.WithBlackText(doc, () => new TextRange(doc.ContentStart, doc.ContentEnd).Save(fs, DataFormats.Rtf));
+            string rtf = null;
+            DocumentService.WithBlackText(doc, () => rtf = RtfBaseline.ToRtf(new TextRange(doc.ContentStart, doc.ContentEnd), doc));
+            File.WriteAllBytes(tmp, System.Text.Encoding.Latin1.GetBytes(rtf));
             File.Move(tmp, RtfPath, true);
             var info = new Info
             {

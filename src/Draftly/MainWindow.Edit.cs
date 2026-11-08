@@ -38,9 +38,7 @@ public partial class MainWindow : FindReplaceWindow.IHost
         var data = new DataObject();
         DocumentService.WithBlackText(Editor.Document, () =>
         {
-            using var rtf = new MemoryStream();
-            sel.Save(rtf, DataFormats.Rtf);
-            data.SetData(DataFormats.Rtf, Encoding.Latin1.GetString(rtf.ToArray()));
+            data.SetData(DataFormats.Rtf, RtfBaseline.ToRtf(sel, Editor.Document));
             using var xaml = new MemoryStream();
             sel.Save(xaml, DataFormats.XamlPackage);
             data.SetData(DataFormats.XamlPackage, new MemoryStream(xaml.ToArray()));
@@ -89,11 +87,28 @@ public partial class MainWindow : FindReplaceWindow.IHost
                 if (img != null) InsertImage(ToPng(img));
                 return;
             }
+            // RTF from other apps (Word, WordPad): load it ourselves so subscript/superscript survive.
+            if (!data.GetDataPresent(DataFormats.XamlPackage) && data.GetDataPresent(DataFormats.Rtf) && ClipboardRtf(data) is string rtf)
+            {
+                PasteWith(() =>
+                {
+                    RtfBaseline.Load(Editor.Selection, rtf, Editor.Document);
+                    Editor.Selection.Select(Editor.Selection.End, Editor.Selection.End);
+                });
+                return;
+            }
             PasteWith(() => Editor.Paste());
         }
         catch (Exception ex) { ClipboardBusy(ex); }
         Editor.Focus();
     }
+
+    private static string ClipboardRtf(IDataObject data) => data.GetData(DataFormats.Rtf) switch
+    {
+        string s => s,
+        MemoryStream ms => Encoding.Latin1.GetString(ms.ToArray()),
+        _ => null,
+    };
 
     private void PasteWith(Action paste)
     {
@@ -145,18 +160,11 @@ public partial class MainWindow : FindReplaceWindow.IHost
                     if (img != null) InsertImage(ToPng(img));
                     break;
                 default:
-                    var rtf = Clipboard.GetData(DataFormats.Rtf);
-                    var bytes = rtf switch
-                    {
-                        string s => Encoding.Latin1.GetBytes(s),
-                        MemoryStream ms => ms.ToArray(),
-                        _ => null,
-                    };
-                    if (bytes == null) { PasteSmart(); break; }
+                    var rtf = ClipboardRtf(Clipboard.GetDataObject());
+                    if (rtf == null) { PasteSmart(); break; }
                     PasteWith(() =>
                     {
-                        using var stream = new MemoryStream(bytes);
-                        Editor.Selection.Load(stream, DataFormats.Rtf);
+                        RtfBaseline.Load(Editor.Selection, rtf, Editor.Document);
                         Editor.Selection.Select(Editor.Selection.End, Editor.Selection.End);
                     });
                     break;

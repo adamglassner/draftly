@@ -77,9 +77,8 @@ public static class DocumentService
     public static FlowDocument LoadRtf(string path)
     {
         var doc = NewDocument();
-        using var fs = File.OpenRead(path);
-        var range = new TextRange(doc.ContentStart, doc.ContentEnd);
-        range.Load(fs, DataFormats.Rtf);
+        var rtf = Encoding.Latin1.GetString(File.ReadAllBytes(path));
+        RtfBaseline.Load(new TextRange(doc.ContentStart, doc.ContentEnd), rtf, doc);
         return doc;
     }
 
@@ -153,8 +152,9 @@ public static class DocumentService
         {
             if (format == DocFormat.Rtf)
             {
-                using var fs = File.Create(tmp);
-                WithBlackText(doc, () => new TextRange(doc.ContentStart, doc.ContentEnd).Save(fs, DataFormats.Rtf));
+                string rtf = null;
+                WithBlackText(doc, () => rtf = RtfBaseline.ToRtf(new TextRange(doc.ContentStart, doc.ContentEnd), doc));
+                File.WriteAllBytes(tmp, Encoding.Latin1.GetBytes(rtf));
             }
             else
             {

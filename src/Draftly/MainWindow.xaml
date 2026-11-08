@@ -224,16 +224,16 @@
                         <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Settings">
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="Word wrap" Width="96" VerticalAlignment="Center"/>
-                                    <ComboBox x:Name="WrapBox" Width="160" SelectionChanged="WrapBox_SelectionChanged">
+                                    <TextBlock Text="Word wrap" Width="84" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="WrapBox" Width="148" SelectionChanged="WrapBox_SelectionChanged">
                                         <ComboBoxItem Content="No wrap"/>
                                         <ComboBoxItem Content="Wrap to window"/>
                                         <ComboBoxItem Content="Wrap to ruler"/>
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Units" Width="96" VerticalAlignment="Center"/>
-                                    <ComboBox x:Name="UnitsBox" Width="160" SelectionChanged="UnitsBox_SelectionChanged">
+                                    <TextBlock Text="Units" Width="84" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="UnitsBox" Width="148" SelectionChanged="UnitsBox_SelectionChanged">
                                         <ComboBoxItem Content="Inches"/>
                                         <ComboBoxItem Content="Centimeters"/>
                                         <ComboBoxItem Content="Points"/>

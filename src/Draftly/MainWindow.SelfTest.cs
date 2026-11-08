@@ -106,6 +106,7 @@ public partial class MainWindow
         await Test("Keyboard shortcuts", ShortcutsWork);
         await Test("Clipboard: cut, copy, paste", ClipboardWorks);
         await Test("Unsaved changes prompt: Cancel, Don't Save, Save", UnsavedPromptWorks);
+        await Test("Open WordPad-style RTF with subscript and superscript", WordPadRtf);
         await Test("Plain text: save and reopen with Unicode", PlainTextRoundTrip);
         await Test("Open a Word (.docx) document", DocxImport);
         await Test("Print Preview", PrintPreviewWorks);
@@ -394,8 +395,11 @@ public partial class MainWindow
         Assert(Save(), "Save failed");
         Assert(!_dirty, "document still marked as changed after saving");
         Assert(!Title.StartsWith("*"), "title still shows * after saving");
-        var head = File.ReadAllText(path)[..5];
-        Assert(head == "{\\rtf", $"saved file isn't RTF (starts with {head})");
+        var saved = File.ReadAllText(path);
+        Assert(saved.StartsWith("{\\rtf"), $"saved file isn't RTF (starts with {saved[..Math.Min(5, saved.Length)]})");
+        Assert(saved.Contains("\\sub ") && saved.Contains("\\super "), "subscript/superscript weren't written as RTF \\sub / \\super (WordPad and Word wouldn't see them)");
+        Assert(!saved.Contains("@@DSU"), "internal sub/superscript tags leaked into the file");
+        Assert(saved.Contains("\\ul") && saved.Contains("\\strike"), "underline/strikethrough weren't written to the RTF");
 
         // Close it, then open it again from disk.
         NewDocument();
@@ -693,6 +697,48 @@ public partial class MainWindow
         SetDirty(false);
         Assert(ConfirmDiscard(), "prompted with no unsaved changes");
         await Settle();
+    }
+
+    private async Task WordPadRtf()
+    {
+        // RTF as WordPad / Word write it: \sub, \super, \nosupersub, \up and \dn, plus a field and a font table.
+        const string rtf = @"{\rtf1\ansi\deff0{\fonttbl{\f0\fswiss Calibri;}{\f1 Cambria Math;}}{\colortbl ;\red0\green0\blue255;}" +
+            @"{\*\generator Riched20 10.0.22621}\viewkind4\uc1\pard\f0\fs22 Water is H{\sub 2}O. E=mc\super 2\nosupersub  and x\up6 n\up0  and y\dn6 i\dn0  done.\par" +
+            @"{\b Bold \cf1 blue\cf0} and \u8364? euro.\par}";
+        var path = Path.Combine(_testDir, "wordpad.rtf");
+        File.WriteAllText(path, rtf, Encoding.ASCII);
+        SetDirty(false);
+        OpenFile(path);
+        await Settle(150);
+        var text = DocText();
+        Assert(text.Contains("Water is H2O. E=mc2 and xn and yi done."), $"text reads \"{text}\"");
+        Assert(text.Contains("€"), "Unicode escape (\\u) not read");
+        Assert(!text.Contains("@@"), "internal tags leaked into the document");
+        void Check(string find, int nth, BaselineAlignment want)
+        {
+            Editor.CaretPosition = Editor.Document.ContentStart;
+            for (int k = 0; k < nth; k++)
+                Assert(FindNext(new FindOptions { Text = find, MatchCase = true, WrapAround = false }, quiet: true), $"\"{find}\" #{k + 1} not found");
+            var got = Prop(Inline.BaselineAlignmentProperty);
+            Assert(got is BaselineAlignment b && b == want, $"\"{find}\" is {got}, expected {want}");
+        }
+        Check("2", 1, BaselineAlignment.Subscript);
+        Check("2", 2, BaselineAlignment.Superscript);
+        Check("n", 2, BaselineAlignment.Superscript);   // 1st n is in "and"
+        Check("O", 1, BaselineAlignment.Baseline);
+        SelectFirst("blue");
+        Assert(Prop(TextElement.ForegroundProperty) is SolidColorBrush blue && blue.Color == Color.FromRgb(0, 0, 255), "colour from WordPad RTF lost");
+        Assert(Prop(TextElement.FontWeightProperty) is FontWeight w && w == FontWeights.Bold, "bold from WordPad RTF lost");
+
+        // Copy keeps sub/superscript for other apps too.
+        try
+        {
+            Editor.SelectAll();
+            CopySelection();
+            var clip = Clipboard.GetData(DataFormats.Rtf) as string ?? "";
+            Assert(clip.Contains("\\sub ") && clip.Contains("\\super "), "copied RTF lost subscript/superscript");
+        }
+        catch (System.Runtime.InteropServices.COMException) { _testLog.Add("SKIP clipboard part of WordPad RTF test (clipboard busy)"); }
     }
 
     private async Task PlainTextRoundTrip()
