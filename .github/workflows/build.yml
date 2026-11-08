@@ -2,9 +2,9 @@ name: Build, test and release
 
 # - Every push / pull request: build the exe, portable zip and installer on Windows,
 #   run Draftly's self-test, test the installer and take screenshots.
-# - Push a tag like v1.0.0: the same, then publish GitHub Release v1.0.0 with the
-#   Setup .exe and the portable zip. The Bytehawk Studio Launcher reads this repo's
-#   latest release to install and update Draftly.
+# - Push to main with a <Version> in the .csproj that has no release yet (or push a tag like v1.0.1):
+#   the same, then publish GitHub Release v<version> with the Setup .exe and the portable zip.
+#   The Bytehawk Studio Launcher reads this repo's latest release to install and update Draftly.
 on:
   push:
     branches: ['**']
@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -36,7 +38,15 @@ jobs:
             $v = ([xml](Get-Content src/Draftly/Draftly.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
           }
           "version=$v" >> $env:GITHUB_OUTPUT
-          Write-Host "Version $v"
+          # Release when a tag was pushed, or when main has a version that hasn't been released yet
+          $release = 'false'
+          if ($env:GITHUB_REF -like 'refs/tags/v*') { $release = 'true' }
+          elseif ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF -eq 'refs/heads/main') {
+            git fetch --tags --quiet
+            if (-not (git tag -l "v$v")) { $release = 'true' }
+          }
+          "release=$release" >> $env:GITHUB_OUTPUT
+          Write-Host "Version $v, release: $release"
 
       - name: Install Inno Setup if needed
         shell: pwsh
@@ -132,10 +142,11 @@ jobs:
           if-no-files-found: ignore
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.ver.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
           make_latest: true
           name: Draftly ${{ steps.ver.outputs.version }}
           body: |

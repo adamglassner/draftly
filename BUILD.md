@@ -53,10 +53,10 @@ GitHub runs this on every push, along with an installer test: install to Program
 
 ## Releasing a new version
 
-1. Change `<Version>` (and `<AssemblyVersion>`, `<FileVersion>`) in `src\Draftly\Draftly.csproj`.
-2. Push a tag with the same number, e.g. `git tag v1.0.1` then `git push origin v1.0.1`.
+1. Change `<Version>` (and `<AssemblyVersion>`, `<FileVersion>`) in `src\Draftly\Draftly.csproj`, e.g. to `1.0.1`.
+2. Push to `main`.
 
-GitHub then builds, tests and publishes the release with the Setup .exe and portable zip. The Bytehawk Studio Launcher picks up the new version from there.
+GitHub then builds and tests it. If every test passes and there's no `v1.0.1` release yet, it publishes Release v1.0.1 with the Setup .exe and portable zip (pushing a tag like `v1.0.1` does the same). The Bytehawk Studio Launcher picks up the new version from there.
 
 ## What the installer does
 
