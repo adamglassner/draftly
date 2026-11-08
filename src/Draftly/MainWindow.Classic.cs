@@ -202,8 +202,7 @@ public partial class MainWindow
         _classicSize.KeyDown += FontSizeBox_KeyDown;
         _classicSize.LostKeyboardFocus += FontSizeBox_LostFocus;
         row.Children.Add(_classicSize);
-        row.Children.Add(ToolButton("", "Grow font (Ctrl+Shift+>)", () => StepFont(+1)));
-        row.Children.Add(ToolButton("", "Shrink font (Ctrl+Shift+<)", () => StepFont(-1)));
+        // Grow/Shrink font live in the Format menu (Ctrl+Shift+> / <), keeping this bar to one row.
         row.Children.Add(Divider());
 
         row.Children.Add(ToolToggle(Letter("B", FontWeights.Bold, font: "Georgia", size: 16), "Bold (Ctrl+B)", BoldBtn, Bold_Click));
