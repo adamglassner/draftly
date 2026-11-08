@@ -270,7 +270,7 @@ public partial class MainWindow
 
     // ================================================================== menus
 
-    private MenuItem Top(string header) => new() { Header = header, Style = (Style)FindResource("TopMenuItem") };
+    private MenuItem TopMenu(string header) => new() { Header = header, Style = (Style)FindResource("TopMenuItem") };
 
     private MenuItem Item(string header, Action action, string gesture = "", string glyph = null)
     {
@@ -321,7 +321,7 @@ public partial class MainWindow
         double? Spacing() => Editor.Selection.Start.Paragraph is Paragraph p ? GetLineSpacing(p) : null;
 
         // ---- File
-        var file = Top("_File");
+        var file = TopMenu("_File");
         file.Items.Add(Item("_New", NewDocument, "Ctrl+N", ""));
         file.Items.Add(Item("_Open…", OpenDocument, "Ctrl+O", ""));
         file.Items.Add(Item("_Save", () => Save(), "Ctrl+S", ""));
@@ -364,7 +364,7 @@ public partial class MainWindow
         menu.Items.Add(file);
 
         // ---- Edit
-        var edit = Top("_Edit");
+        var edit = TopMenu("_Edit");
         edit.Items.Add(Enabled(Item("_Undo", () => { Editor.Undo(); UpdateFormattingUi(); }, "Ctrl+Z", ""), () => Editor.CanUndo));
         edit.Items.Add(Enabled(Item("_Redo", () => { Editor.Redo(); UpdateFormattingUi(); }, "Ctrl+Y", ""), () => Editor.CanRedo));
         edit.Items.Add(new Separator());
@@ -381,7 +381,7 @@ public partial class MainWindow
         menu.Items.Add(edit);
 
         // ---- View
-        var view = Top("_View");
+        var view = TopMenu("_View");
         view.Items.Add(Checked("_Ruler", () => S.ShowRuler, () => SetSetting(() => S.ShowRuler = !S.ShowRuler)));
         view.Items.Add(Checked("_Status bar", () => S.ShowStatusBar, () => SetSetting(() => S.ShowStatusBar = !S.ShowStatusBar)));
         view.Items.Add(Checked("Formatting _marks", () => S.ShowFormattingMarks, () => SetSetting(() => S.ShowFormattingMarks = !S.ShowFormattingMarks), "Ctrl+Shift+8"));
@@ -410,7 +410,7 @@ public partial class MainWindow
         menu.Items.Add(view);
 
         // ---- Insert
-        var insert = Top("_Insert");
+        var insert = TopMenu("_Insert");
         insert.Items.Add(Item("_Picture…", () => InsertPicture_Click(this, NoArgs), "", ""));
         insert.Items.Add(Item("_Date and time…", () => InsertDateTime_Click(this, NoArgs), "", ""));
         insert.Items.Add(Item("_Object…", () => InsertObject_Click(this, NoArgs), "", ""));
@@ -420,7 +420,7 @@ public partial class MainWindow
         menu.Items.Add(insert);
 
         // ---- Format
-        var format = Top("F_ormat");
+        var format = TopMenu("F_ormat");
         format.Items.Add(Checked("_Bold", () => BoldBtn.IsChecked == true, () => Bold_Click(this, NoArgs), "Ctrl+B"));
         format.Items.Add(Checked("_Italic", () => ItalicBtn.IsChecked == true, () => Italic_Click(this, NoArgs), "Ctrl+I"));
         format.Items.Add(Checked("_Underline", () => UnderlineBtn.IsChecked == true, () => Underline_Click(this, NoArgs), "Ctrl+U"));
@@ -467,7 +467,7 @@ public partial class MainWindow
         menu.Items.Add(format);
 
         // ---- Help
-        var help = Top("_Help");
+        var help = TopMenu("_Help");
         help.Items.Add(Item("_Keyboard shortcuts", () => OpenSettings("Keyboard shortcuts"), "", ""));
         help.Items.Add(Item("Draftly on _GitHub", () =>
         {
