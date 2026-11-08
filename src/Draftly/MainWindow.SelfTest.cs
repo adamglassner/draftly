@@ -439,11 +439,13 @@ public partial class MainWindow
 
         if (expectDark)
             Assert(Luminance(Res("PageBg")) < 0.05, "the page isn't dark in Dark mode");
-        foreach (var run in DocumentService.Walk(Editor.Document.Blocks).OfType<Run>())
-            if (run.Background is SolidColorBrush hb && run.Foreground is SolidColorBrush hf && hb.Color.A > 128 && run.Text.Trim().Length > 0)
-                Assert(Contrast(hb.Color, hf.Color) >= 4.5, $"highlighted \"{run.Text}\" is hard to read ({Contrast(hb.Color, hf.Color):0.0}:1)");
         else
             Assert(Res("PageBg") == Colors.White, "the page isn't white in Light mode");
+        foreach (var run in DocumentService.Walk(Editor.Document.Blocks).OfType<Run>())
+        {
+            if (run.Background is SolidColorBrush hb && run.Foreground is SolidColorBrush hf && hb.Color.A > 128 && run.Text.Trim().Length > 0)
+                Assert(Contrast(hb.Color, hf.Color) >= 4.5, $"highlighted \"{run.Text}\" is hard to read ({Contrast(hb.Color, hf.Color):0.0}:1)");
+        }
 
         // The editor really uses those colours.
         Assert(Editor.Foreground is SolidColorBrush ef && ef.Color == Res("PageText"), "the editor text doesn't follow the theme");

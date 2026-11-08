@@ -169,7 +169,8 @@ public partial class MainWindow : Window
     {
         bool compact = ActualWidth > 0 && ActualWidth < 1220;
         Resources["RibbonLabelVisibility"] = compact || !S.ShowRibbonLabels ? Visibility.Collapsed : Visibility.Visible;
-        FontFamilyBox.Width = compact ? 140 : 170;
+        FontFamilyBox.Width = compact ? 124 : 170;
+        FontSizeBox.Width = compact ? 58 : 68;
     }
 
     private void OnThemeChanged()

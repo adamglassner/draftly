@@ -276,36 +276,45 @@ public static class DocumentService
     }
 
     /// <summary>
-    /// RTF files (and WPF's own RTF reader) often put underline/strikethrough on a Span or Paragraph that
-    /// wraps the text. Moving it onto the text runs themselves lets the toolbar show it and toggle it off.
+    /// RTF files (and WPF's own RTF reader) often put underline, strikethrough or highlight on a Span or
+    /// Paragraph that wraps the text. Moving them onto the text runs themselves lets the toolbar show
+    /// them and turn them off again.
     /// </summary>
     public static void PushDownDecorations(IEnumerable<Block> blocks)
     {
         foreach (var el in Walk(blocks).ToList())
         {
-            if (el is Run) continue;
-            if (el.ReadLocalValue(Inline.TextDecorationsProperty) is not TextDecorationCollection outer &&
-                el.ReadLocalValue(Paragraph.TextDecorationsProperty) is not TextDecorationCollection)
-                continue;
-            var deco = el is Paragraph para ? para.TextDecorations : (el as Inline)?.TextDecorations;
-            if (deco == null || deco.Count == 0) continue;
-            bool u = deco.Any(d => d.Location == TextDecorationLocation.Underline);
-            bool st = deco.Any(d => d.Location == TextDecorationLocation.Strikethrough);
-            IEnumerable<Inline> inlines = el switch
+            if (el is Run || (el is not Span && el is not Paragraph)) continue;
+            IEnumerable<Run> runs = el switch
             {
-                Paragraph p => Descendants(p.Inlines),
-                Span sp => Descendants(sp.Inlines),
-                _ => Enumerable.Empty<Inline>(),
+                Paragraph p => Descendants(p.Inlines).OfType<Run>(),
+                Span sp => Descendants(sp.Inlines).OfType<Run>(),
+                _ => Enumerable.Empty<Run>(),
             };
-            foreach (var run in inlines.OfType<Run>())
+
+            var decoProp = el is Paragraph ? Paragraph.TextDecorationsProperty : Inline.TextDecorationsProperty;
+            if (el.ReadLocalValue(decoProp) is TextDecorationCollection deco && deco.Count > 0)
             {
-                var own = run.TextDecorations;
-                bool ru = u || (own?.Any(d => d.Location == TextDecorationLocation.Underline) ?? false);
-                bool rs = st || (own?.Any(d => d.Location == TextDecorationLocation.Strikethrough) ?? false);
-                run.TextDecorations = Decorations(ru, rs);
+                bool u = deco.Any(d => d.Location == TextDecorationLocation.Underline);
+                bool st = deco.Any(d => d.Location == TextDecorationLocation.Strikethrough);
+                foreach (var run in runs.ToList())
+                {
+                    var own = run.TextDecorations;
+                    bool ru = u || (own?.Any(d => d.Location == TextDecorationLocation.Underline) ?? false);
+                    bool rs = st || (own?.Any(d => d.Location == TextDecorationLocation.Strikethrough) ?? false);
+                    run.TextDecorations = Decorations(ru, rs);
+                }
+                el.ClearValue(decoProp);
             }
-            if (el is Paragraph pp) pp.ClearValue(Paragraph.TextDecorationsProperty);
-            else el.ClearValue(Inline.TextDecorationsProperty);
+
+            // Highlight on a Span (a Paragraph's background is paragraph shading, so it stays).
+            if (el is Span && el.ReadLocalValue(TextElement.BackgroundProperty) is Brush bg)
+            {
+                foreach (var run in runs.ToList())
+                    if (run.ReadLocalValue(TextElement.BackgroundProperty) == DependencyProperty.UnsetValue)
+                        run.Background = bg;
+                el.ClearValue(TextElement.BackgroundProperty);
+            }
         }
     }
 
