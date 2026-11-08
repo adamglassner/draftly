@@ -191,6 +191,26 @@ public partial class MainWindow
         return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
     }
 
+    /// <summary>Colours from an RTF colour table that are actually used for text (\cfN) and are light.</summary>
+    private static List<string> LightTextColoursInRtf(string rtf)
+    {
+        var table = new List<Color?>();
+        var m = System.Text.RegularExpressions.Regex.Match(rtf, @"\{\\colortbl\s*(.*?)\}", System.Text.RegularExpressions.RegexOptions.Singleline);
+        if (m.Success)
+            foreach (var entry in m.Groups[1].Value.Split(';'))
+            {
+                var c = System.Text.RegularExpressions.Regex.Match(entry, @"\\red(\d+)\\green(\d+)\\blue(\d+)");
+                table.Add(c.Success ? Color.FromRgb(byte.Parse(c.Groups[1].Value), byte.Parse(c.Groups[2].Value), byte.Parse(c.Groups[3].Value)) : null);
+            }
+        var light = new List<string>();
+        foreach (System.Text.RegularExpressions.Match cf in System.Text.RegularExpressions.Regex.Matches(rtf, @"\\cf(\d+)"))
+        {
+            int i = int.Parse(cf.Groups[1].Value);
+            if (i < table.Count && table[i] is Color col && Luminance(col) > 0.3) light.Add($"#{col.R:X2}{col.G:X2}{col.B:X2}");
+        }
+        return light.Distinct().ToList();
+    }
+
     private static Color Res(string key) => (Color)Application.Current.Resources[key + "Color"];
 
     /// <summary>Clicks a button (by its text) in the first open window of type T, once it appears.</summary>
@@ -258,7 +278,7 @@ public partial class MainWindow
         await Settle();
         Assert(!_dirty, "a new document shouldn't be marked as changed");
 
-        TypeText("Draftly self-test heading\nPlain words, italic words, underlined words, struck words, H2O and E=mc2.\nFirst bullet\nSecond bullet\nSpaced paragraph with one and a half line spacing.\nPicture: ");
+        TypeText("Draftly self-test heading\nPlain words, italic words, underlined words, struck words, bothlines, H2O and E=mc2.\nFirst bullet\nSecond bullet\nSpaced paragraph with one and a half line spacing.\nPicture: ");
         Assert(_dirty, "typing should mark the document as changed");
         Assert(Title.StartsWith("*"), "the title bar should show * for unsaved changes");
 
@@ -274,6 +294,9 @@ public partial class MainWindow
         SelectFirst("underlined");
         ToggleDecoration(TextDecorationLocation.Underline);
         SelectFirst("struck");
+        ToggleDecoration(TextDecorationLocation.Strikethrough);
+        SelectFirst("bothlines");
+        ToggleDecoration(TextDecorationLocation.Underline);
         ToggleDecoration(TextDecorationLocation.Strikethrough);
         SelectFirst("Plain");
         ApplyHighlight(Color.FromRgb(0xFF, 0xF2, 0x00));
@@ -332,6 +355,9 @@ public partial class MainWindow
         Assert(HasDecoration(TextDecorationLocation.Underline), $"{where}: underline lost");
         SelectFirst("struck");
         Assert(HasDecoration(TextDecorationLocation.Strikethrough), $"{where}: strikethrough lost");
+        Assert(!HasDecoration(TextDecorationLocation.Underline), $"{where}: struck text gained an underline");
+        SelectFirst("bothlines");
+        Assert(HasDecoration(TextDecorationLocation.Underline) && HasDecoration(TextDecorationLocation.Strikethrough), $"{where}: underline + strikethrough together lost");
         SelectFirst("Plain");
         Assert(Prop(TextElement.BackgroundProperty) is SolidColorBrush hl && hl.Color.R > 0xE0 && hl.Color.G > 0xD0 && hl.Color.B < 0x40, $"{where}: highlight lost ({Prop(TextElement.BackgroundProperty)})");
 
@@ -614,7 +640,9 @@ public partial class MainWindow
         SelectFirst("gamma");
         CopySelection();
         var rtf = Clipboard.GetData(DataFormats.Rtf) as string ?? "";
-        Assert(!rtf.Contains("\\red255\\green255\\blue255") && !rtf.Contains("\\red232\\green232\\blue232"), "Copy in Dark mode put light-coloured text on the clipboard");
+        Assert(rtf.StartsWith("{\\rtf"), "Copy didn't put RTF on the clipboard");
+        var light = LightTextColoursInRtf(rtf);
+        Assert(light.Count == 0, "Copy in Dark mode gave text the colour(s) " + string.Join(", ", light) + ". RTF: " + rtf[..Math.Min(rtf.Length, 900)]);
         S.Theme = ThemeMode.Light; SettingsService.Commit(); await Settle();
     }
 
@@ -938,7 +966,8 @@ public partial class MainWindow
     {
         while (d != null)
         {
-            Brush b = d switch { Border bd => bd.Background, Panel p => p.Background, Control c => c.Background, _ => null };
+            // Only what actually draws: borders and panels (a control's Background may be unused by its template).
+            Brush b = d switch { Border bd => bd.Background, Panel p => p.Background, _ => null };
             if (b is SolidColorBrush sb && sb.Color.A > 200) return sb.Color;
             d = VisualTreeHelper.GetParent(d);
         }

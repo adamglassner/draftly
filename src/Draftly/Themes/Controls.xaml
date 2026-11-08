@@ -414,6 +414,7 @@
     <!-- ========== CheckBox ========== -->
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Margin" Value="0,4"/>
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingVisual}"/>
         <Setter Property="Template">
@@ -452,6 +453,7 @@
     <!-- ========== RadioButton (default) ========== -->
     <Style TargetType="RadioButton">
         <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Margin" Value="0,4"/>
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRingVisual}"/>
         <Setter Property="Template">

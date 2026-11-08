@@ -150,12 +150,10 @@ public partial class MainWindow
     /// <summary>Toggles underline or strikethrough without removing the other.</summary>
     private void ToggleDecoration(TextDecorationLocation loc)
     {
-        bool on = HasDecoration(loc);
-        var current = Editor.Selection.GetPropertyValue(Inline.TextDecorationsProperty) as TextDecorationCollection;
-        var result = new TextDecorationCollection();
-        if (current != null) foreach (var d in current) if (d.Location != loc) result.Add(d);
-        if (!on) result.Add(loc == TextDecorationLocation.Underline ? TextDecorations.Underline[0] : TextDecorations.Strikethrough[0]);
-        ApplyToSelection(Inline.TextDecorationsProperty, result.Count == 0 ? null : result);
+        bool u = HasDecoration(TextDecorationLocation.Underline);
+        bool st = HasDecoration(TextDecorationLocation.Strikethrough);
+        if (loc == TextDecorationLocation.Underline) u = !u; else st = !st;
+        ApplyToSelection(Inline.TextDecorationsProperty, DocumentService.Decorations(u, st));
     }
 
     private void Subscript_Click(object sender, RoutedEventArgs e) => ToggleBaseline(BaselineAlignment.Subscript);

@@ -219,6 +219,28 @@ public static class DocumentService
 
     // ------------------------------------------------------------------ helpers
 
+    /// <summary>
+    /// Underline/strikethrough as WPF's own built-in collections. WPF's RTF writer only recognises those,
+    /// so building new collections would silently lose the formatting when saving.
+    /// </summary>
+    public static TextDecorationCollection Decorations(bool underline, bool strike)
+    {
+        if (underline && strike) return BothDecorations;
+        if (underline) return TextDecorations.Underline;
+        if (strike) return TextDecorations.Strikethrough;
+        return null;
+    }
+
+    private static readonly TextDecorationCollection BothDecorations = MakeBoth();
+    private static TextDecorationCollection MakeBoth()
+    {
+        var c = new TextDecorationCollection();
+        foreach (var d in TextDecorations.Underline) c.Add(d);
+        foreach (var d in TextDecorations.Strikethrough) c.Add(d);
+        c.Freeze();
+        return c;
+    }
+
     public static double PointsToDips(double pt) => pt * 96.0 / 72.0;
     public static double DipsToPoints(double dip) => Math.Round(dip * 72.0 / 96.0 * 2, MidpointRounding.AwayFromZero) / 2;
 

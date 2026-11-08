@@ -510,10 +510,8 @@ public static class DocxImporter
 
         if (el is D.Inline inl)
         {
-            var deco = new TextDecorationCollection();
-            if (f.Underline == true) deco.Add(TextDecorations.Underline[0]);
-            if (f.Strike == true) deco.Add(TextDecorations.Strikethrough[0]);
-            if (deco.Count > 0) inl.TextDecorations = deco;
+            var deco = DocumentService.Decorations(f.Underline == true, f.Strike == true);
+            if (deco != null) inl.TextDecorations = deco;
 
             if (f.VertAlign == "superscript") { inl.BaselineAlignment = BaselineAlignment.Superscript; el.FontSize *= 0.7; }
             else if (f.VertAlign == "subscript") { inl.BaselineAlignment = BaselineAlignment.Subscript; el.FontSize *= 0.7; }
