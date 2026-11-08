@@ -11,6 +11,7 @@ public partial class App : Application
     public static string SelfTestOutput { get; private set; }
     public static string SelfTestShots { get; private set; }
     public static bool IsSelfTest => SelfTestOutput != null;
+    internal static string MainWindowTestName = "(starting)";
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -58,9 +59,23 @@ public partial class App : Application
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        // WPF reports a missing style/brush lookup through this event even though it recovers by itself.
+        // Never bother the user with that; just note it.
+        if (e.Exception is ResourceReferenceKeyNotFoundException rk)
+        {
+            try
+            {
+                Directory.CreateDirectory(SettingsService.Folder);
+                File.AppendAllText(Path.Combine(SettingsService.Folder, "resource-warnings.log"), $"[{DateTime.Now:u}] {rk.Key}\r\n{Environment.StackTrace}\r\n\r\n");
+                if (IsSelfTest) File.AppendAllText(SelfTestOutput, $"FAIL missing resource '{rk.Key}' during \"{MainWindowTestName}\": {Environment.StackTrace.Replace("\r\n", " | ")}\r\n");
+            }
+            catch { }
+            e.Handled = true;
+            return;
+        }
         if (IsSelfTest)
         {
-            try { File.AppendAllText(SelfTestOutput, $"FAIL unhandled exception: {e.Exception}\r\n"); } catch { }
+            try { File.AppendAllText(SelfTestOutput, $"FAIL unhandled exception during \"{MainWindowTestName}\": {e.Exception}\r\n"); } catch { }
             e.Handled = true;
             Environment.Exit(99);
             return;

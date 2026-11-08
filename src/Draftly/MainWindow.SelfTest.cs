@@ -45,17 +45,21 @@ public partial class MainWindow
     private async Task Test(string name, Func<Task> body)
     {
         var sw = Stopwatch.StartNew();
+        App.MainWindowTestName = name;
+        string line;
         try
         {
             await body();
-            _testLog.Add($"PASS {name} ({sw.ElapsedMilliseconds} ms)");
+            line = $"PASS {name} ({sw.ElapsedMilliseconds} ms)";
         }
         catch (Exception ex)
         {
             _testFails++;
             var msg = ex is TestFailure ? ex.Message : ex.ToString();
-            _testLog.Add($"FAIL {name}: {msg.Replace("\r", " ").Replace("\n", " ")}");
+            line = $"FAIL {name}: {msg.Replace("\r", " ").Replace("\n", " ")}";
         }
+        _testLog.Add(line);
+        try { File.AppendAllText(App.SelfTestOutput, line + "\r\n"); } catch { }
         // Close anything a failed test left open.
         foreach (Window w in Application.Current.Windows.Cast<Window>().ToList())
             if (w != this) { try { w.Close(); } catch { } }
@@ -86,6 +90,7 @@ public partial class MainWindow
         await Settle(300);
 
         _testLog.Add($"Draftly {typeof(MainWindow).Assembly.GetName().Version} self-test on {Environment.OSVersion.VersionString}");
+        try { File.WriteAllText(outPath, _testLog[0] + "\r\n"); } catch { }
 
         await Test("Create and format a document", CreateFormattedDocument);
         await Test("Formatting buttons reflect the selection", CheckToolbarState);
@@ -112,8 +117,11 @@ public partial class MainWindow
         await Test("Every dialog opens in Light and Dark", DialogsOpen);
         await Test("Screenshots", TakeScreenshots);
 
-        _testLog.Add(_testFails == 0 ? "ALL TESTS PASSED" : $"{_testFails} TEST(S) FAILED");
-        try { File.WriteAllLines(outPath, _testLog); } catch { }
+        // Missing-resource warnings logged by App count as failures.
+        var resourceFails = File.Exists(outPath) ? File.ReadAllLines(outPath).Count(l => l.StartsWith("FAIL missing resource")) : 0;
+        _testFails += resourceFails;
+        var summary = _testFails == 0 ? "ALL TESTS PASSED" : $"{_testFails} TEST(S) FAILED";
+        try { File.AppendAllText(outPath, summary + "\r\n"); } catch { }
         try { Directory.Delete(_testDir, true); } catch { }
 
         _closingConfirmed = true;
