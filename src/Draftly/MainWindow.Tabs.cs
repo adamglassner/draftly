@@ -40,7 +40,8 @@ internal sealed class DocTab
 /// <summary>Tabs, sessions and opening files from File Explorer (like Windows 11 Notepad).</summary>
 public partial class MainWindow
 {
-    private DocTab _tab;
+    // Exists from the start (the XAML can raise events before InitTabs runs); InitTabs gives it the XAML editor.
+    private DocTab _tab = new() { Layout = PageLayout.FromSettings(SettingsService.Current) };
     private readonly List<DocTab> _tabs = new();
     private ControlTemplate _editorTemplate;
     private StackPanel _tabPanel;
@@ -70,7 +71,7 @@ public partial class MainWindow
     private void InitTabs()
     {
         _editorTemplate = Editor.Template;
-        _tab = new DocTab { Box = Editor, Layout = PageLayout.FromSettings(S) };
+        _tab.Box = Editor;
         _tabs.Add(_tab);
         WireEditor(Editor);
         BuildTabStrip();
