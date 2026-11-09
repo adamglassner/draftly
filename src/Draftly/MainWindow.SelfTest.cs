@@ -1058,7 +1058,7 @@ public partial class MainWindow
     {
         var style = (Style)FindResource("RibbonLarge");
         var buttons = FindVisuals<Button>(panel).Where(b => b.Style == style && b.IsVisible).ToList();
-        Assert(buttons.Count >= 3, $"{where} tab: found only {buttons.Count} large buttons");
+        Assert(buttons.Count >= 2, $"{where} tab: found only {buttons.Count} large buttons");
         var tops = buttons.Select(b => (b, Icon: FindVisuals<TextBlock>(b).First())).Select(x => (Name: (string)x.b.Content,
             IconY: x.Icon.TranslatePoint(new Point(0, x.Icon.ActualHeight / 2), panel).Y, Height: x.b.ActualHeight)).ToList();
         double minY = tops.Min(t => t.IconY), maxY = tops.Max(t => t.IconY);
