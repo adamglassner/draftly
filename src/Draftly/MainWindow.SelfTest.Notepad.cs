@@ -281,7 +281,8 @@ public partial class MainWindow
         Assert(link?.NavigateUri?.AbsoluteUri == "https://example.com/", "the link didn't survive saving as RTF");
         Assert(MarkdownService.FromDocument(Editor.Document).Contains("[site](https://example.com"), "Markdown export lost the link");
 
-        Editor.CaretPosition = link.ContentStart.GetPositionAtOffset(1);
+        Editor.CaretPosition = link.ContentStart.GetPositionAtOffset(3);
+        Assert(LinkAt(Editor.Selection.Start) != null, "the cursor isn't in the reopened link");
         ClickWhenOpen<LinkDialog>("Remove link");
         EditLink();
         await Settle();
@@ -361,14 +362,14 @@ public partial class MainWindow
         S.ShowLineNumbers = true; SettingsService.Commit();
         await Settle(200);
         Assert(ShowLineNumbersBtn.IsChecked == true, "the View tab toggle isn't on");
-        Assert(Editor.Document.PagePadding.Left >= 46, "no room for line numbers in the margin");
+        Assert(Editor.Document.PagePadding.Left >= 46, $"no room for line numbers in the margin (padding {Editor.Document.PagePadding}, computed {_padLeft}, wrap {S.WordWrap})");
         _tab.LineNumbers.CollectNow();
         var n = _tab.LineNumbers.Numbers;
         Assert(n.Count >= 4 && n[0] == 1 && n.Take(4).SequenceEqual(new[] { 1, 2, 3, 4 }), $"numbers: {string.Join(",", n)}");
         Assert(_tab.LineNumbers.IsVisible, "line numbers aren't visible");
 
         S.WordWrap = WrapMode.WrapToWindow; SettingsService.Commit(); await Settle(200);
-        Assert(Editor.Document.PagePadding.Left >= 46, "no room for line numbers when wrapping to the window");
+        Assert(Editor.Document.PagePadding.Left >= 46, $"no room for line numbers when wrapping to the window (padding {Editor.Document.PagePadding}, computed {_padLeft})");
         S.WordWrap = oldWrap; SettingsService.Commit();
 
         // A new tab gets them too.

@@ -161,7 +161,7 @@ public partial class MainWindow : Window
     {
         bool compact = ActualWidth > 0 && ActualWidth < 1220;
         Resources["RibbonLabelVisibility"] = compact || !S.ShowRibbonLabels ? Visibility.Collapsed : Visibility.Visible;
-        FontFamilyBox.Width = compact ? 118 : 170;
+        FontFamilyBox.Width = compact ? 104 : 170;
         FontSizeBox.Width = compact ? 64 : 68;
         if (_classicFont != null) _classicFont.Width = ActualWidth > 0 && ActualWidth < 1100 ? 120 : 170;
     }
