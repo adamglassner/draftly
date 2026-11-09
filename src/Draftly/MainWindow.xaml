@@ -129,6 +129,7 @@
 
                         <!-- Paragraph -->
                         <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Paragraph">
+                            <StackPanel Orientation="Horizontal">
                             <StackPanel VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <Button Style="{StaticResource IconButton}" Click="IndentLess_Click" ToolTip="Decrease indent">
@@ -174,13 +175,9 @@
                                     </Button>
                                 </StackPanel>
                             </StackPanel>
-                        </HeaderedContentControl>
-                        <Rectangle Style="{StaticResource GroupDivider}"/>
-
-                        <!-- Styles -->
-                        <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Styles">
-                            <Button x:Name="StylesBtn" Style="{StaticResource RibbonLarge}" Tag="&#xE8D2;" Content="Normal" Click="StylesBtn_Click"
+                            <Button x:Name="StylesBtn" Style="{StaticResource RibbonLarge}" Tag="&#xE8D2;" Content="Normal" Click="StylesBtn_Click" Margin="6,0,0,0"
                                     ToolTip="Paragraph style: headings, title, quote and code (Ctrl+Alt+1, 2, 3)"/>
+                            </StackPanel>
                         </HeaderedContentControl>
                         <Rectangle Style="{StaticResource GroupDivider}"/>
 

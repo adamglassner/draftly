@@ -118,6 +118,8 @@ public partial class MainWindow
         b.PreviewMouseWheel += Editor_PreviewMouseWheel;
         b.PreviewKeyDown += Editor_PreviewKeyDown;
         b.ContextMenuOpening += Editor_ContextMenuOpening;
+        // Applying the template resets the document's page padding, so lay the page out again once it's on screen.
+        b.Loaded += (_, _) => { if (b == Editor) { UpdatePageLayout(); RefreshOverlays(); } };
         WireEditor(b);
         return b;
     }
@@ -264,6 +266,7 @@ public partial class MainWindow
         _tab = t;
         PageBorder.Child = t.Box;
         Editor = t.Box;
+        t.Box.ApplyTemplate();
         if (IsLoaded) AttachAdorners(t);
         UpdatePageLayout();
         Title = (t.Dirty ? "*" : "") + DocNameOf(t) + " - Draftly";
