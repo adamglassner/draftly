@@ -640,6 +640,9 @@ public partial class MainWindow
                 FontSizeBox.Text = fs is double d ? DocumentService.DipsToPoints(d).ToString(CultureInfo.CurrentCulture) : "";
             }
 
+            StylesBtn.Content = sel.Start.Paragraph is Paragraph sp ? ParagraphStyles.NameOf(ParagraphStyles.Detect(sp)) : "Normal";
+            if (_tab != null) { MarkdownSourceBtn.IsChecked = _tab.MarkdownSource; MarkdownSourceBtn.IsEnabled = _format == DocFormat.Md; }
+            UseTabsBtn.IsChecked = S.UseTabs;
             BoldBtn.IsChecked = sel.GetPropertyValue(TextElement.FontWeightProperty) is FontWeight w && w.ToOpenTypeWeight() >= 600;
             ItalicBtn.IsChecked = sel.GetPropertyValue(TextElement.FontStyleProperty) is FontStyle st && st != FontStyles.Normal;
             UnderlineBtn.IsChecked = HasDecoration(TextDecorationLocation.Underline);

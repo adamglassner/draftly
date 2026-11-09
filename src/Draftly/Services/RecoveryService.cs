@@ -26,19 +26,20 @@ public static class RecoveryService
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Draftly", "Recovery");
 
     private static readonly string Id = $"{Environment.ProcessId}-{Guid.NewGuid():N}";
-    private static string RtfPath => Path.Combine(Folder, Id + ".rtf");
-    private static string InfoPath => Path.Combine(Folder, Id + ".json");
+    private static string RtfPath(string tab) => Path.Combine(Folder, $"{Id}-{tab}.rtf");
+    private static string InfoPath(string tab) => Path.Combine(Folder, $"{Id}-{tab}.json");
 
-    public static void Write(FlowDocument doc, string originalPath, string displayName)
+    /// <summary>Writes a recovery copy for one tab (each tab has its own key).</summary>
+    public static void Write(FlowDocument doc, string originalPath, string displayName, string tab = "0")
     {
         try
         {
             Directory.CreateDirectory(Folder);
-            var tmp = RtfPath + ".tmp";
+            var tmp = RtfPath(tab) + ".tmp";
             string rtf = null;
             DocumentService.WithBlackText(doc, () => rtf = RtfBaseline.ToRtf(new TextRange(doc.ContentStart, doc.ContentEnd), doc));
             File.WriteAllBytes(tmp, System.Text.Encoding.Latin1.GetBytes(rtf));
-            File.Move(tmp, RtfPath, true);
+            File.Move(tmp, RtfPath(tab), true);
             var info = new Info
             {
                 ProcessId = Environment.ProcessId,
@@ -47,15 +48,26 @@ public static class RecoveryService
                 DisplayName = displayName,
                 SavedAt = DateTime.Now,
             };
-            File.WriteAllText(InfoPath, JsonSerializer.Serialize(info));
+            File.WriteAllText(InfoPath(tab), JsonSerializer.Serialize(info));
         }
         catch { /* recovery is best-effort */ }
     }
 
-    public static void Clear()
+    /// <summary>Deletes one tab's recovery copy, or every copy this window made when <paramref name="tab"/> is null.</summary>
+    public static void Clear(string tab = null)
     {
-        try { File.Delete(RtfPath); } catch { }
-        try { File.Delete(InfoPath); } catch { }
+        if (tab != null)
+        {
+            try { File.Delete(RtfPath(tab)); } catch { }
+            try { File.Delete(InfoPath(tab)); } catch { }
+            return;
+        }
+        try
+        {
+            if (!Directory.Exists(Folder)) return;
+            foreach (var f in Directory.GetFiles(Folder, Id + "-*")) { try { File.Delete(f); } catch { } }
+        }
+        catch { }
     }
 
     /// <summary>Recovery files left behind by Draftly windows that are no longer running.</summary>

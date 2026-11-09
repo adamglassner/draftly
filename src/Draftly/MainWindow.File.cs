@@ -26,14 +26,17 @@ public partial class MainWindow
             return mi;
         }
 
-        menu.Items.Add(Item("New", "", "Ctrl+N", NewDocument));
+        menu.Items.Add(Item(S.UseTabs ? "New tab" : "New", "", S.UseTabs ? "Ctrl+N / Ctrl+T" : "Ctrl+N", NewDocument));
+        menu.Items.Add(Item("New window", null, "Ctrl+Shift+N", NewWindow));
         menu.Items.Add(Item("Open…", "", "Ctrl+O", OpenDocument));
         menu.Items.Add(Item("Save", "", "Ctrl+S", () => Save()));
         var saveAs = Item("Save as", "", "", () => { });
         saveAs.Items.Add(Item("Rich Text document (.rtf)", null, "Ctrl+Shift+S", () => SaveAs(DocFormat.Rtf)));
         saveAs.Items.Add(Item("Plain text document (.txt)", null, "", () => SaveAs(DocFormat.Txt)));
+        saveAs.Items.Add(Item("Markdown document (.md)", null, "", () => SaveAs(DocFormat.Md)));
         saveAs.Items.Add(Item("Other format…", null, "F12", () => SaveAs(null)));
         menu.Items.Add(saveAs);
+        menu.Items.Add(Item("Save all", null, "", () => SaveAll(), _tabs.Count > 1));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Print…", "", "Ctrl+P", Print));
         menu.Items.Add(Item("Print preview", "", "Ctrl+F2", PrintPreview));
@@ -47,7 +50,7 @@ public partial class MainWindow
         foreach (var f in files)
         {
             var path = f;
-            var mi = Item($"_{n++}  {Path.GetFileName(f)}", null, "", () => { if (ConfirmDiscard()) OpenFile(path); });
+            var mi = Item($"_{n++}  {Path.GetFileName(f)}", null, "", () => OpenFromUser(path));
             mi.ToolTip = f;
             recent.Items.Add(mi);
         }
@@ -61,6 +64,7 @@ public partial class MainWindow
         menu.Items.Add(Item("Settings", "", "Ctrl+,", () => OpenSettings()));
         menu.Items.Add(Item("About Draftly", "", "", () => OpenSettings("About")));
         menu.Items.Add(new Separator());
+        if (S.UseTabs) menu.Items.Add(Item("Close tab", null, "Ctrl+W", () => CloseTab(_tab)));
         menu.Items.Add(Item("Exit", "", "Alt+F4", Close));
 
         menu.Closed += (_, _) => Editor.Focus();
@@ -71,11 +75,14 @@ public partial class MainWindow
 
     private void NewDocument()
     {
+        if (S.UseTabs) { NewTab(); HideInfo(); Editor.Focus(); return; }
         if (!ConfirmDiscard()) return;
         _path = null;
         _recoveredFrom = null;
         _importedFrom = null;
         _encoding = null;
+        _tab.LineEnding = "\r\n";
+        _tab.MarkdownSource = false;
         _format = S.SaveFormat == DefaultSaveFormat.Txt ? DocFormat.Txt : DocFormat.Rtf;
         _layout = PageLayout.FromSettings(S);
         SetDocument(DocumentService.NewDocument());
@@ -85,19 +92,22 @@ public partial class MainWindow
 
     private void OpenDocument()
     {
-        if (!ConfirmDiscard()) return;
+        if (!S.UseTabs && !ConfirmDiscard()) return;
         var dlg = new OpenFileDialog
         {
             Filter = DocumentService.OpenFilter,
+            Multiselect = S.UseTabs,
             InitialDirectory = Directory.Exists(S.LastFolder) ? S.LastFolder : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         };
         if (dlg.ShowDialog(this) != true) return;
-        OpenFile(dlg.FileName);
+        if (!S.UseTabs) { OpenFile(dlg.FileName); return; }
+        foreach (var f in dlg.FileNames) OpenFromUser(f);
     }
 
-    /// <summary>Opens a file. Callers must already have asked about unsaved changes.</summary>
-    public void OpenFile(string path)
+    /// <summary>Opens a file into the current tab. Callers must already have asked about unsaved changes.</summary>
+    public bool OpenFile(string path)
     {
+        bool ok = false;
         try
         {
             Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
@@ -105,6 +115,8 @@ public partial class MainWindow
             _recoveredFrom = null;
             _layout = PageLayout.FromSettings(S);
             _encoding = result.TextEncoding;
+            _tab.LineEnding = result.LineEnding ?? "\r\n";
+            _tab.MarkdownSource = false;
             if (result.Format == DocFormat.Docx)
             {
                 // Never overwrite a .docx with RTF. Saving goes through Save As.
@@ -124,7 +136,10 @@ public partial class MainWindow
             SettingsService.AddRecent(path);
 
             if (result.Warning != null) ShowInfo(result.Warning);
-            else if (_pendingRecovery == null) HideInfo();
+            else if (!_infoIsWindowLevel) HideInfo();
+            UpdateTabHeader(_tab);
+            UpdateStatus();
+            ok = true;
         }
         catch (Exception ex)
         {
@@ -138,6 +153,7 @@ public partial class MainWindow
             Mouse.OverrideCursor = null;
         }
         Editor.Focus();
+        return ok;
     }
 
     // ================================================================== Save
@@ -152,7 +168,24 @@ public partial class MainWindow
             !MessageDialog.Ask(this, "Save as plain text",
                 $"\"{Path.GetFileName(_path)}\" is a plain text file. Formatting, pictures and tables will be lost when it's saved.\n\nSave as plain text anyway?\n\nTo keep the formatting, choose No and use Save as › Rich Text document."))
             return false;
+        if (_format == DocFormat.Md && !_tab.MarkdownSource && MarkdownService.WouldLoseFormatting(Editor.Document) &&
+            !MessageDialog.Ask(this, "Save as Markdown",
+                $"\"{Path.GetFileName(_path)}\" is a Markdown file. Markdown can't store pictures, colours, fonts or centred text, so they'll be left out.\n\nSave as Markdown anyway?\n\nTo keep everything, choose No and use Save as › Rich Text document."))
+            return false;
         return WriteTo(_path, _format, _encoding);
+    }
+
+    /// <summary>Saves every tab that has unsaved changes.</summary>
+    private bool SaveAll()
+    {
+        var start = _tab;
+        foreach (var t in _tabs.Where(x => x.Dirty).ToList())
+        {
+            ActivateTab(t);
+            if (!Save()) return false;
+        }
+        ActivateTab(start);
+        return true;
     }
 
     private bool SaveAs(DocFormat? format)
@@ -162,7 +195,7 @@ public partial class MainWindow
         var dlg = new SaveFileDialog
         {
             Filter = DocumentService.SaveFilter,
-            FilterIndex = fmt == DocFormat.Txt ? 2 : 1,
+            FilterIndex = fmt switch { DocFormat.Txt => 2, DocFormat.Md => 4, _ => 1 },
             FileName = baseName,
             AddExtension = true,
             OverwritePrompt = true,
@@ -176,10 +209,16 @@ public partial class MainWindow
         {
             case 2: fmt = DocFormat.Txt; enc = _format == DocFormat.Txt && _encoding != null ? _encoding : DocumentService.EncodingFor(S.TextEncoding); break;
             case 3: fmt = DocFormat.Txt; enc = Encoding.Unicode; break;
+            case 4: fmt = DocFormat.Md; enc = _format == DocFormat.Md && _encoding != null ? _encoding : new UTF8Encoding(false); break;
             default: fmt = DocFormat.Rtf; break;
         }
         if (Path.GetExtension(path).Equals(".docx", StringComparison.OrdinalIgnoreCase))
-            path = Path.ChangeExtension(path, fmt == DocFormat.Txt ? ".txt" : ".rtf");
+            path = Path.ChangeExtension(path, fmt switch { DocFormat.Txt => ".txt", DocFormat.Md => ".md", _ => ".rtf" });
+
+        if (fmt != DocFormat.Md && _tab.MarkdownSource) ToggleMarkdownSource();   // save the formatted document, not its source text
+        if (fmt == DocFormat.Md && !_tab.MarkdownSource && MarkdownService.WouldLoseFormatting(Editor.Document) &&
+            !MessageDialog.Ask(this, "Save as Markdown", "Markdown can't store pictures, colours, fonts or centred text. They'll be left out of the saved file.\n\nContinue?"))
+            return false;
 
         if (fmt == DocFormat.Txt && DocumentHasFormatting() &&
             !MessageDialog.Ask(this, "Save as plain text", "Plain text can't store formatting, pictures or tables. They'll be removed from the saved file.\n\nContinue?"))
@@ -188,7 +227,7 @@ public partial class MainWindow
         if (!WriteTo(path, fmt, enc)) return false;
         _path = path;
         _format = fmt;
-        _encoding = fmt == DocFormat.Txt ? enc : null;
+        _encoding = fmt is DocFormat.Txt or DocFormat.Md ? enc : null;
         _recoveredFrom = null;
         _importedFrom = null;
         S.LastFolder = Path.GetDirectoryName(path);
@@ -203,7 +242,7 @@ public partial class MainWindow
         try
         {
             Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-            DocumentService.Save(Editor.Document, path, format, enc);
+            DocumentService.Save(Editor.Document, path, format, enc, _tab.LineEnding, _tab.MarkdownSource && format == DocFormat.Md);
             SetDirty(false);
             return true;
         }

@@ -275,7 +275,10 @@ public sealed class SettingsWindow : Window
             Line(),
             Setting("Status bar", "Page, line, word count and zoom.", Toggle(S.ShowStatusBar, v => S.ShowStatusBar = v)),
             Line(),
-            Setting("Formatting marks", "Paragraph marks (¶), spaces (·) and tabs (→).", Toggle(S.ShowFormattingMarks, v => S.ShowFormattingMarks = v))));
+            Setting("Formatting marks", "Paragraph marks (¶), spaces (·) and tabs (→).", Toggle(S.ShowFormattingMarks, v => S.ShowFormattingMarks = v)),
+            Line(),
+            Setting("Line numbers", "Numbers each line in the page's left margin. Shown on screen only — they aren't printed or saved (Ctrl+Alt+L).",
+                Toggle(S.ShowLineNumbers, v => S.ShowLineNumbers = v))));
 
         sp.Children.Add(H("Typing"));
         sp.Children.Add(Card(
@@ -285,17 +288,56 @@ public sealed class SettingsWindow : Window
             Setting("Select whole words when dragging", "When you drag across several words, the selection snaps to whole words.",
                 Toggle(S.SelectWholeWords, v => S.SelectWholeWords = v)),
             Line(),
-            Setting("Smooth scrolling", "Animates mouse-wheel scrolling.", Toggle(S.SmoothScrolling, v => S.SmoothScrolling = v))));
+            Setting("Smooth scrolling", "Animates mouse-wheel scrolling.", Toggle(S.SmoothScrolling, v => S.SmoothScrolling = v)),
+            Line(),
+            Setting("Markdown shortcuts while typing", "At the start of a line, type # for a heading (## and ### for smaller ones), - or * for bullets, 1. for numbering or > for a quote, then a space.",
+                Toggle(S.MarkdownShortcuts, v => S.MarkdownShortcuts = v))));
         return sp;
     }
 
     private UIElement Files()
     {
         var sp = new StackPanel();
+        sp.Children.Add(H("Default app"));
+        var status = new StackPanel();
+        void RefreshDefaults()
+        {
+            status.Children.Clear();
+            foreach (var (ext, label) in new[] { (".rtf", "Rich Text documents (.rtf)"), (".txt", "Text documents (.txt)"), (".md", "Markdown documents (.md)") })
+            {
+                bool isDefault = false;
+                try { isDefault = FileAssociations.IsDefault(ext); } catch { }
+                var row = new TextBlock { Text = (isDefault ? "✓  " : "–  ") + label + (isDefault ? " open in Draftly" : " open in another app"), Margin = new Thickness(0, 2, 0, 2) };
+                if (!isDefault) row.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondary");
+                status.Children.Add(row);
+            }
+        }
+        RefreshDefaults();
+        Activated += (_, _) => RefreshDefaults();   // after coming back from Windows Settings
+        var makeDefault = new Button { Content = "Make Draftly the default…" };
+        makeDefault.Click += (_, _) => FileAssociations.OpenDefaultAppsSettings();
+        sp.Children.Add(Card(
+            Setting("Open files with Draftly", "Draftly adds itself to \"Open with\", then opens Windows Settings so you can confirm. (Windows doesn't let apps make themselves the default.)", makeDefault),
+            Line(),
+            status));
+        sp.Children.Add(H("Tabs"));
+        sp.Children.Add(Card(
+            Setting("Open documents in tabs", "Like Notepad: new and opened documents get their own tab in one window. Off works like WordPad, one document per window.",
+                Toggle(S.UseTabs, v => S.UseTabs = v)),
+            Line(),
+            Setting("Open files from File Explorer in the window that's already open", "Otherwise each file opens its own Draftly window.",
+                Toggle(S.OpenInExistingWindow, v => S.OpenInExistingWindow = v)),
+            Line(),
+            Setting("Reopen my tabs next time", "Draftly reopens the files you had open when you closed it.",
+                Toggle(S.RestoreTabs, v => S.RestoreTabs = v)),
+            Line(),
+            Setting("Keep unsaved changes when I close Draftly", "Like Notepad: closing doesn't ask to save. Your unsaved tabs come back next time, exactly as you left them.",
+                Toggle(S.KeepUnsavedOnClose, v => S.KeepUnsavedOnClose = v))));
         sp.Children.Add(H("Saving"));
         sp.Children.Add(Card(
             Setting("Default format for new documents", "Rich Text keeps formatting and pictures. Plain text is text only.",
                 Choice(new[] { "Rich Text (.rtf)", "Plain text (.txt)" }, (int)S.SaveFormat, i => S.SaveFormat = (DefaultSaveFormat)i)),
+            Hint("Markdown (.md) files open with their headings, lists, links and tables formatted. Use Save as › Markdown to make one."),
             Line(),
             Setting("Plain text encoding", "Used when saving new .txt files. Existing files keep their own encoding.",
                 Choice(new[] { "UTF-8", "UTF-8 with BOM", "ANSI (Windows-1252)", "UTF-16 (Unicode)" }, (int)S.TextEncoding, i => S.TextEncoding = (TxtEncoding)i)),
@@ -390,13 +432,18 @@ public sealed class SettingsWindow : Window
         var sp = new StackPanel();
         var groups = new (string, (string, string)[])[]
         {
-            ("Files", new[] { ("New", "Ctrl+N"), ("Open", "Ctrl+O"), ("Save", "Ctrl+S"), ("Save as", "Ctrl+Shift+S / F12"), ("Print", "Ctrl+P"), ("Print preview", "Ctrl+F2") }),
+            ("Files and tabs", new[] { ("New tab", "Ctrl+N / Ctrl+T"), ("New window", "Ctrl+Shift+N"), ("Open", "Ctrl+O"), ("Save", "Ctrl+S"), ("Save as", "Ctrl+Shift+S / F12"),
+                ("Close tab", "Ctrl+W / Ctrl+F4"), ("Next / previous tab", "Ctrl+Tab / Ctrl+Shift+Tab"), ("Go to tab 1–8 / last tab", "Alt+1…8 / Alt+9"), ("Print", "Ctrl+P"), ("Print preview", "Ctrl+F2") }),
             ("Editing", new[] { ("Undo", "Ctrl+Z"), ("Redo", "Ctrl+Y"), ("Cut / Copy / Paste", "Ctrl+X / Ctrl+C / Ctrl+V"), ("Paste special", "Ctrl+Alt+V"),
-                ("Select all", "Ctrl+A"), ("Find", "Ctrl+F"), ("Find next / previous", "F3 / Shift+F3"), ("Replace", "Ctrl+H"), ("Page break", "Ctrl+Enter") }),
+                ("Select all", "Ctrl+A"), ("Find", "Ctrl+F"), ("Find next / previous", "F3 / Shift+F3"), ("Replace", "Ctrl+H"), ("Page break", "Ctrl+Enter"),
+                ("Insert or edit a link", "Ctrl+K"), ("Open a link", "Ctrl+click"), ("Insert time and date", "F5") }),
             ("Formatting", new[] { ("Bold / Italic / Underline", "Ctrl+B / Ctrl+I / Ctrl+U"), ("Subscript / Superscript", "Ctrl+= / Ctrl+Shift+="),
                 ("Grow / shrink font", "Ctrl+Shift+> / Ctrl+Shift+<"), ("Clear formatting", "Ctrl+Space"), ("Bullets", "Ctrl+Shift+L"),
-                ("Align left / center / right / justify", "Ctrl+L / E / R / J"), ("Line spacing 1 / 1.5 / 2", "Ctrl+1 / Ctrl+5 / Ctrl+2") }),
-            ("View", new[] { ("Zoom in / out", "Ctrl+Numpad+ / Ctrl+Minus or Ctrl+wheel"), ("Reset zoom", "Ctrl+0"), ("Formatting marks", "Ctrl+Shift+8"), ("Settings", "Ctrl+,") }),
+                ("Align left / center / right / justify", "Ctrl+L / E / R / J"), ("Line spacing 1 / 1.5 / 2", "Ctrl+1 / Ctrl+5 / Ctrl+2"),
+                ("Heading 1 / 2 / 3", "Ctrl+Alt+1 / 2 / 3"), ("Title", "Ctrl+Alt+T"), ("Normal text", "Ctrl+Alt+0"),
+                ("Heading while typing", "# / ## / ### then Space"), ("List or quote while typing", "- or 1. or > then Space") }),
+            ("View", new[] { ("Zoom in / out", "Ctrl+Numpad+ / Ctrl+Minus or Ctrl+wheel"), ("Reset zoom", "Ctrl+0"), ("Formatting marks", "Ctrl+Shift+8"), ("Line numbers", "Ctrl+Alt+L"),
+                ("Markdown formatted / source", "Ctrl+Shift+M"), ("Settings", "Ctrl+,") }),
         };
         foreach (var (title, rows) in groups)
         {

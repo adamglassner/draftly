@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 using Draftly.Services;
@@ -39,13 +40,37 @@ public partial class App : Application
             ApplyUiPreferences();
         };
 
-        string fileToOpen = null;
-        foreach (var arg in e.Args)
+        // Windows file-association helpers (used by the installer and Settings).
+        if (e.Args.Any(a => a.Equals("--register-file-types", StringComparison.OrdinalIgnoreCase)))
         {
-            if (!arg.StartsWith("/") && !arg.StartsWith("-") && File.Exists(arg)) { fileToOpen = Path.GetFullPath(arg); break; }
+            FileAssociations.Register();
+            Shutdown(0);
+            return;
+        }
+        if (e.Args.Any(a => a.Equals("--unregister-file-types", StringComparison.OrdinalIgnoreCase)))
+        {
+            FileAssociations.Unregister();
+            Shutdown(0);
+            return;
         }
 
-        var win = new MainWindow(fileToOpen);
+        var files = new List<string>();
+        foreach (var arg in e.Args)
+        {
+            if (arg.StartsWith("/") || arg.StartsWith("--")) continue;
+            try { if (File.Exists(arg)) files.Add(Path.GetFullPath(arg)); } catch { }
+        }
+        bool newWindow = e.Args.Any(a => a.Equals("--new-window", StringComparison.OrdinalIgnoreCase));
+
+        // A file double-clicked in File Explorer opens as a tab in the Draftly window that's already open.
+        if (!IsSelfTest && !newWindow && files.Count > 0 && SettingsService.Current.OpenInExistingWindow && SettingsService.Current.UseTabs &&
+            SingleInstance.TrySend(files))
+        {
+            Shutdown(0);
+            return;
+        }
+
+        var win = new MainWindow(files.ToArray(), newWindow);
         MainWindow = win;
         win.Show();
     }

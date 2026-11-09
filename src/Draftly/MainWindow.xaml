@@ -10,6 +10,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>  <!-- tab row -->
             <RowDefinition Height="Auto"/>  <!-- ribbon -->
+            <RowDefinition Height="Auto"/>  <!-- document tabs -->
             <RowDefinition Height="Auto"/>  <!-- info bar -->
             <RowDefinition Height="Auto"/>  <!-- ruler -->
             <RowDefinition Height="*"/>     <!-- page -->
@@ -176,15 +177,26 @@
                         </HeaderedContentControl>
                         <Rectangle Style="{StaticResource GroupDivider}"/>
 
+                        <!-- Styles -->
+                        <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Styles">
+                            <Button x:Name="StylesBtn" Style="{StaticResource RibbonLarge}" Tag="&#xE8D2;" Content="Normal" Click="StylesBtn_Click"
+                                    ToolTip="Paragraph style: headings, title, quote and code (Ctrl+Alt+1, 2, 3)"/>
+                        </HeaderedContentControl>
+                        <Rectangle Style="{StaticResource GroupDivider}"/>
+
                         <!-- Insert -->
                         <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Insert">
                             <StackPanel Orientation="Horizontal">
                                 <Button Style="{StaticResource RibbonLarge}" Tag="&#xEB9F;" Content="Picture" Click="InsertPicture_Click"
                                         ToolTip="Insert a picture from a file"/>
-                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE787;" Content="Date and time" Click="InsertDateTime_Click"
-                                        ToolTip="Insert the current date or time"/>
-                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE710;" Content="Object" Click="InsertObject_Click"
-                                        ToolTip="Insert a table, symbol, line, page break or another document"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE71B;" Content="Link" Click="InsertLink_Click"
+                                            ToolTip="Insert or edit a link (Ctrl+K)"/>
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE787;" Content="Date and time" Click="InsertDateTime_Click"
+                                            ToolTip="Insert the current date or time (F5 inserts it straight away)"/>
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE710;" Content="Object" Click="InsertObject_Click"
+                                            ToolTip="Insert a table, symbol, line, page break or another document"/>
+                                </StackPanel>
                             </StackPanel>
                         </HeaderedContentControl>
                         <Rectangle Style="{StaticResource GroupDivider}"/>
@@ -217,6 +229,18 @@
                                 <ToggleButton x:Name="ShowStatusBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE8A1;" Content="Status bar" Click="ShowStatus_Click"/>
                                 <ToggleButton x:Name="ShowMarksBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE8D2;" Content="Formatting marks" Click="ShowMarks_Click"
                                               ToolTip="Show paragraph marks, spaces and tabs (Ctrl+Shift+8)"/>
+                            </StackPanel>
+                        </HeaderedContentControl>
+                        <Rectangle Style="{StaticResource GroupDivider}"/>
+
+                        <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Document">
+                            <StackPanel VerticalAlignment="Center">
+                                <ToggleButton x:Name="ShowLineNumbersBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE8FD;" Content="Line numbers" Click="ShowLineNumbers_Click"
+                                              ToolTip="Number the lines in the margin, on screen only (Ctrl+Alt+L)"/>
+                                <ToggleButton x:Name="UseTabsBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE7C4;" Content="Tabs" Click="UseTabs_Click"
+                                              ToolTip="Open documents in tabs in one window"/>
+                                <ToggleButton x:Name="MarkdownSourceBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE943;" Content="Markdown source" Click="MarkdownSource_Click"
+                                              ToolTip="Show a Markdown file's formatting or its source text (Ctrl+Shift+M)"/>
                             </StackPanel>
                         </HeaderedContentControl>
                         <Rectangle Style="{StaticResource GroupDivider}"/>
@@ -265,8 +289,11 @@
             </ScrollViewer>
         </Border>
 
+        <!-- ======================= DOCUMENT TABS ======================= -->
+        <Border x:Name="DocTabsHost" Grid.Row="2" Margin="8,0,8,6" Height="32"/>
+
         <!-- ======================= INFO BAR ======================= -->
-        <Border x:Name="InfoBar" Grid.Row="2" Visibility="Collapsed" Margin="8,0,8,6" CornerRadius="{StaticResource Radius}"
+        <Border x:Name="InfoBar" Grid.Row="3" Visibility="Collapsed" Margin="8,0,8,6" CornerRadius="{StaticResource Radius}"
                 Background="{DynamicResource AccentSoft}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" Padding="12,6">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="11"
@@ -279,13 +306,13 @@
         </Border>
 
         <!-- ======================= RULER ======================= -->
-        <Border x:Name="RulerHost" Grid.Row="3" Background="{DynamicResource RulerMargin}"
+        <Border x:Name="RulerHost" Grid.Row="4" Background="{DynamicResource RulerMargin}"
                 BorderBrush="{DynamicResource Divider}" BorderThickness="0,1,0,1" ClipToBounds="True">
             <c:Ruler x:Name="Ruler" Height="26"/>
         </Border>
 
         <!-- ======================= PAGE ======================= -->
-        <ScrollViewer x:Name="EditorScroll" Grid.Row="4" Background="{DynamicResource CanvasBg}"
+        <ScrollViewer x:Name="EditorScroll" Grid.Row="5" Background="{DynamicResource CanvasBg}"
                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Focusable="False"
                       ScrollChanged="EditorScroll_ScrollChanged" SizeChanged="EditorScroll_SizeChanged"
                       PreviewMouseLeftButtonDown="EditorScroll_PreviewMouseLeftButtonDown">
@@ -328,7 +355,7 @@
         </ScrollViewer>
 
         <!-- ======================= STATUS BAR ======================= -->
-        <Border x:Name="StatusBar" Grid.Row="5" Background="{DynamicResource StatusBg}" BorderBrush="{DynamicResource Divider}"
+        <Border x:Name="StatusBar" Grid.Row="6" Background="{DynamicResource StatusBg}" BorderBrush="{DynamicResource Divider}"
                 BorderThickness="0,1,0,0" Padding="12,3">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -346,7 +373,20 @@
                             Foreground="{DynamicResource TextSecondary}" Padding="6,2" Margin="-6,0,14,0">
                         <TextBlock x:Name="WordInfo" Text="0 words"/>
                     </Button>
-                    <TextBlock x:Name="FormatInfo" Text="Rich Text" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <TextBlock x:Name="CharInfo" Text="0 characters" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <TextBlock x:Name="FormatInfo" Text="Rich Text" VerticalAlignment="Center" Margin="0,0,14,0"/>
+                    <Button x:Name="LineEndingBtn" Style="{StaticResource FlatBase}" Click="LineEnding_Click" Visibility="Collapsed"
+                            ToolTip="Line endings used when this file is saved. Click to change."
+                            Foreground="{DynamicResource TextSecondary}" Padding="6,2" Margin="0,0,8,0">
+                        <TextBlock x:Name="LineEndingInfo" Text="Windows (CRLF)"/>
+                    </Button>
+                    <Button x:Name="MarkdownViewBtn" Style="{StaticResource FlatBase}" Click="MarkdownSource_Click" Visibility="Collapsed"
+                            ToolTip="Switch between formatted Markdown and its source text (Ctrl+Shift+M)"
+                            Foreground="{DynamicResource TextSecondary}" Padding="6,2" Margin="0,0,8,0">
+                        <TextBlock x:Name="MarkdownViewInfo" Text="Show source"/>
+                    </Button>
+                    <TextBlock x:Name="LinkInfo" VerticalAlignment="Center" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="360"
+                               Visibility="Collapsed" Foreground="{DynamicResource Accent}"/>
                 </StackPanel>
             </DockPanel>
         </Border>

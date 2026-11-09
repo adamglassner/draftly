@@ -2,6 +2,31 @@
 
 All notable changes to Draftly. Newest first.
 
+## 1.2.0 - 2026-11-08
+
+The features Windows 11 Notepad added, plus line numbers and default-app setup.
+
+### Added
+- **Tabs:** every document gets its own tab in one window, with its own undo history. Use Ctrl+T or Ctrl+N for a new tab, Ctrl+W to close one, Ctrl+Tab and Ctrl+Shift+Tab to switch, Alt+1…9 to jump to a tab and Ctrl+Shift+N for a new window. Middle-click a tab to close it. A dot marks tabs with unsaved changes. Tabs can be turned off in Settings to work one document at a time, like WordPad.
+- **Opening files:** files opened from File Explorer join the Draftly window that's already open as new tabs. Opening a file that's already open switches to its tab. Open several files at once, or drag them onto the window. Dropping a picture onto the page inserts it.
+- **Sessions:** Draftly reopens your tabs next time. Optionally, like Notepad, it can also keep unsaved changes when you close it and bring them back exactly as you left them.
+- **Headings and styles:** Title, Heading 1–3, Quote and Code, from the new Styles button, the right-click menu or Format › Style. Shortcuts are Ctrl+Alt+1/2/3, Ctrl+Alt+T for Title and Ctrl+Alt+0 for normal text. Pressing Enter after a heading goes back to normal text. Styles are saved as ordinary formatting, so they look right in WordPad and Word too.
+- **Markdown shortcuts while typing:** at the start of a line, type `#`, `##` or `###` for a heading, `-` or `*` for bullets, `1.` for numbering or `>` for a quote, then a space. You can turn this off in Settings.
+- **Links:** insert or edit a link with Ctrl+K, Insert › Link or the right-click menu, and open one with Ctrl+click. The status bar shows where the link at the cursor goes. Links are saved in RTF.
+- **Markdown files (.md):** headings, bold, italic, strikethrough, lists, quotes, code, links and tables open formatted. Switch to the source text and back with Ctrl+Shift+M or the status bar, and save back as Markdown. You're warned before anything Markdown can't store (pictures, colours, centred text) would be left out.
+- **Table editing:** insert rows above or below, insert columns left or right, and delete rows, columns or the whole table, from the right-click menu or Insert › Table.
+- **Line numbers** in the page's margin (View tab, View menu, Settings, or Ctrl+Alt+L). They're shown on screen only and aren't printed.
+- **Default app:** Settings › Files and saving shows whether .rtf, .txt and .md files open in Draftly, and a "Make Draftly the default…" button. It adds Draftly to "Open with" and opens Windows Settings, where one click confirms it (Windows doesn't let apps make themselves the default). Draftly also offers this once in its info bar.
+- A character count in the status bar.
+- Line endings (Windows CRLF, Unix LF, old Mac CR) are detected, kept when you save plain text or Markdown, shown in the status bar and can be changed.
+- F5 inserts the time and date, as in Notepad.
+- Save all, for saving every tab with unsaved changes.
+- The installer can also register Markdown (.md) files, and uninstalling removes the "Open with" entries Draftly added.
+- Self-tests for everything above.
+
+### Not included
+- Notepad's Copilot and AI features. Draftly works entirely offline.
+
 ## 1.1.1 - 2026-11-08
 
 ### Fixed

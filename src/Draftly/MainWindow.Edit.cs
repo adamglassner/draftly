@@ -184,9 +184,15 @@ public partial class MainWindow : FindReplaceWindow.IHost
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
         };
         if (dlg.ShowDialog(this) != true) { Editor.Focus(); return; }
+        InsertPictureFile(dlg.FileName);
+        Editor.Focus();
+    }
+
+    private void InsertPictureFile(string fileName)
+    {
         try
         {
-            var bytes = File.ReadAllBytes(dlg.FileName);
+            var bytes = File.ReadAllBytes(fileName);
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
@@ -197,9 +203,8 @@ public partial class MainWindow : FindReplaceWindow.IHost
         }
         catch (Exception ex)
         {
-            MessageDialog.Show(this, "Insert picture", $"\"{Path.GetFileName(dlg.FileName)}\" couldn't be read as a picture.\n\n{ex.Message}", MessageDialog.Kind.Error);
+            MessageDialog.Show(this, "Insert picture", $"\"{Path.GetFileName(fileName)}\" couldn't be read as a picture.\n\n{ex.Message}", MessageDialog.Kind.Error);
         }
-        Editor.Focus();
     }
 
     private static BitmapImage ToPng(BitmapSource src)
@@ -574,6 +579,7 @@ public partial class MainWindow : FindReplaceWindow.IHost
 
     private void Editor_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
+        if (sender is FrameworkElement { ContextMenu: ContextMenu own }) EditorMenu = own;   // each tab's editor has its own menu
         EditorMenu.Items.Clear();
         MenuItem Item(string header, string glyph, string gesture, Action a, bool enabled = true)
         {
@@ -614,6 +620,44 @@ public partial class MainWindow : FindReplaceWindow.IHost
             EditorMenu.Items.Add(Item("Resize picture…", "", "", () => ResizePicture(img)));
             EditorMenu.Items.Add(new Separator());
         }
+        var link = LinkAt(Editor.Selection.Start);
+        if (link != null)
+        {
+            EditorMenu.Items.Add(Item("Open link", null, "Ctrl+click", () => OpenLink(link)));
+            EditorMenu.Items.Add(Item("Edit link…", null, "Ctrl+K", EditLink));
+            EditorMenu.Items.Add(Item("Copy link address", null, "", () => { try { Clipboard.SetText(LinkAddress(link)); } catch { } }));
+            EditorMenu.Items.Add(Item("Remove link", null, "", () => RemoveLink(link)));
+        }
+        else EditorMenu.Items.Add(Item("Link…", null, "Ctrl+K", EditLink));
+        EditorMenu.Items.Add(new Separator());
+
+        var cell = CurrentCell();
+        if (cell != null)
+        {
+            var table = new MenuItem { Header = "Table" };
+            table.Items.Add(Item("Insert row above", null, "", () => TableInsertRow(false)));
+            table.Items.Add(Item("Insert row below", null, "", () => TableInsertRow(true)));
+            table.Items.Add(Item("Insert column left", null, "", () => TableInsertColumn(false)));
+            table.Items.Add(Item("Insert column right", null, "", () => TableInsertColumn(true)));
+            table.Items.Add(new Separator());
+            table.Items.Add(Item("Delete row", null, "", TableDeleteRow));
+            table.Items.Add(Item("Delete column", null, "", TableDeleteColumn));
+            table.Items.Add(Item("Delete table", null, "", TableDelete));
+            EditorMenu.Items.Add(table);
+            EditorMenu.Items.Add(new Separator());
+        }
+
+        var styles = new MenuItem { Header = "Style" };
+        var current = Editor.Selection.Start.Paragraph is Paragraph sp ? ParagraphStyles.Detect(sp) : ParaStyle.Normal;
+        foreach (var (style, name, shortcut) in ParagraphStyles.All)
+        {
+            var st = style;
+            var mi = Item(name, null, shortcut, () => ApplyParagraphStyle(st));
+            mi.IsCheckable = true;
+            mi.IsChecked = st == current;
+            styles.Items.Add(mi);
+        }
+        EditorMenu.Items.Add(styles);
         EditorMenu.Items.Add(Item("Paragraph…", null, "", ShowParagraphDialog));
         EditorMenu.Items.Add(Item("Clear formatting", null, "Ctrl+Space", ClearFormatting, hasSel));
         EditorMenu.Items.Add(new Separator());
@@ -634,7 +678,13 @@ public partial class MainWindow : FindReplaceWindow.IHost
         bool ctrl = mods == ModifierKeys.Control;
         bool ctrlShift = mods == (ModifierKeys.Control | ModifierKeys.Shift);
 
-        if (ctrl && key == Key.N) NewDocument();
+        if (ctrl && (key == Key.N || key == Key.T)) NewDocument();
+        else if (ctrlShift && key == Key.N) NewWindow();
+        else if ((ctrl && key == Key.W) || (ctrl && key == Key.F4)) { if (S.UseTabs || _tabs.Count > 1) CloseTab(_tab); else Close(); }
+        else if ((ctrl && key == Key.Tab) || (ctrl && key == Key.PageDown)) NextTab(+1);
+        else if ((ctrlShift && key == Key.Tab) || (ctrl && key == Key.PageUp)) NextTab(-1);
+        else if (mods == ModifierKeys.Alt && key >= Key.D1 && key <= Key.D9 && _tabs.Count > 1)
+            ActivateTab(key == Key.D9 ? _tabs[^1] : _tabs.ElementAtOrDefault(key - Key.D1) ?? _tab);
         else if (ctrl && key == Key.O) OpenDocument();
         else if (ctrl && key == Key.S) Save();
         else if ((ctrlShift && key == Key.S) || (mods == ModifierKeys.None && key == Key.F12)) SaveAs(null);
@@ -654,6 +704,9 @@ public partial class MainWindow : FindReplaceWindow.IHost
         else if (ctrl && (key == Key.Subtract || key == Key.OemMinus)) ZoomStep(-1);
         else if (ctrl && (key == Key.D0 || key == Key.NumPad0)) SetZoom(1.0);
         else if (ctrlShift && key == Key.D8) { S.ShowFormattingMarks = !S.ShowFormattingMarks; SettingsService.Commit(); }
+        else if (mods == (ModifierKeys.Control | ModifierKeys.Alt) && key == Key.L) { S.ShowLineNumbers = !S.ShowLineNumbers; SettingsService.Commit(); }
+        else if (mods == ModifierKeys.None && key == Key.F5) InsertNowTimeDate();
+        else if (ctrlShift && key == Key.M && _format == DocFormat.Md) ToggleMarkdownSource();
         else return false;
         return true;
     }
@@ -661,6 +714,7 @@ public partial class MainWindow : FindReplaceWindow.IHost
     private void Editor_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None) { if (HandleEnterAfterHeading()) e.Handled = true; return; }
         if (HandleEditorShortcut(key, Keyboard.Modifiers)) e.Handled = true;
     }
 
@@ -694,6 +748,8 @@ public partial class MainWindow : FindReplaceWindow.IHost
         else if (ctrl && key == Key.D2) SetLineSpacing(2.0);
         else if (ctrl && key == Key.D5) SetLineSpacing(1.5);
         else if (ctrl && key == Key.Enter) InsertPageBreak();
+        else if (ctrl && key == Key.K) EditLink();
+        else if (mods == (ModifierKeys.Control | ModifierKeys.Alt) && StyleForKey(key) is ParaStyle ps) ApplyParagraphStyle(ps);
         else if ((mods == ModifierKeys.None || mods == ModifierKeys.Shift) && (key == Key.PageDown || key == Key.PageUp))
             PageMove(key == Key.PageDown, mods == ModifierKeys.Shift);
         else return false;

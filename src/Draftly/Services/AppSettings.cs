@@ -36,6 +36,22 @@ public sealed class AppSettings
     public bool SmoothScrolling { get; set; } = true;
     public bool SelectWholeWords { get; set; } = false;
     public bool HighlightCurrentLine { get; set; } = false;
+    /// <summary>Line numbers in the page's left margin (on screen).</summary>
+    public bool ShowLineNumbers { get; set; } = false;
+    /// <summary>Typing "# ", "## ", "- ", "1. ", "> " at the start of a line applies a heading, list or quote.</summary>
+    public bool MarkdownShortcuts { get; set; } = true;
+
+    // ---- Tabs & sessions (like Windows 11 Notepad) ----
+    /// <summary>Open several documents as tabs in one window. Off = one document at a time, like WordPad.</summary>
+    public bool UseTabs { get; set; } = true;
+    /// <summary>Files opened from File Explorer go to a new tab in the window that's already open.</summary>
+    public bool OpenInExistingWindow { get; set; } = true;
+    /// <summary>Reopen the tabs that were open when Draftly was last closed.</summary>
+    public bool RestoreTabs { get; set; } = true;
+    /// <summary>Close without asking; unsaved changes are kept and come back next time (Notepad style).</summary>
+    public bool KeepUnsavedOnClose { get; set; } = false;
+    /// <summary>Offer once to make Draftly the default app for .rtf files.</summary>
+    public bool AskDefaultApp { get; set; } = true;
 
     // ---- Files ----
     public DefaultSaveFormat SaveFormat { get; set; } = DefaultSaveFormat.Rtf;

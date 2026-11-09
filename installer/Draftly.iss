@@ -9,7 +9,7 @@
 
 #define MyAppName "Draftly"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.1"
+  #define MyAppVersion "1.2.0"
 #endif
 #define MyAppPublisher "Bytehawk Studio"
 #define MyAppExeName "Draftly.exe"
@@ -67,6 +67,7 @@ FinishedHeadingLabel=[name/ver] is installed
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 Name: "assocrtf"; Description: "Open &Rich Text files (.rtf) with Draftly"; GroupDescription: "File types (optional; leave unticked to skip):"; Flags: unchecked
 Name: "assoctxt"; Description: "Open &text files (.txt) with Draftly"; GroupDescription: "File types (optional; leave unticked to skip):"; Flags: unchecked
+Name: "assocmd"; Description: "Open &Markdown files (.md) with Draftly"; GroupDescription: "File types (optional; leave unticked to skip):"; Flags: unchecked
 
 [Files]
 Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
@@ -84,6 +85,7 @@ Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}"; ValueType: s
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".rtf"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".txt"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".md"; ValueData: ""
 Root: HKA; Subkey: "Software\Classes\Applications\{#MyAppExeName}\SupportedTypes"; ValueType: string; ValueName: ".docx"; ValueData: ""
 
 Root: HKA; Subkey: "Software\Classes\Draftly.rtf"; ValueType: string; ValueData: "Rich Text Document"; Flags: uninsdeletekey
@@ -92,11 +94,15 @@ Root: HKA; Subkey: "Software\Classes\Draftly.rtf\shell\open\command"; ValueType:
 Root: HKA; Subkey: "Software\Classes\Draftly.txt"; ValueType: string; ValueData: "Text Document"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\Draftly.txt\DefaultIcon"; ValueType: string; ValueData: "{app}\{#MyAppExeName},0"
 Root: HKA; Subkey: "Software\Classes\Draftly.txt\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+Root: HKA; Subkey: "Software\Classes\Draftly.md"; ValueType: string; ValueData: "Markdown Document"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\Draftly.md\DefaultIcon"; ValueType: string; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\Draftly.md\shell\open\command"; ValueType: string; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 Root: HKA; Subkey: "Software\Bytehawk Studio\Draftly\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "{#MyAppName}"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Bytehawk Studio\Draftly\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "A modern rich text word processor"
 Root: HKA; Subkey: "Software\Bytehawk Studio\Draftly\Capabilities\FileAssociations"; ValueType: string; ValueName: ".rtf"; ValueData: "Draftly.rtf"
 Root: HKA; Subkey: "Software\Bytehawk Studio\Draftly\Capabilities\FileAssociations"; ValueType: string; ValueName: ".txt"; ValueData: "Draftly.txt"
+Root: HKA; Subkey: "Software\Bytehawk Studio\Draftly\Capabilities\FileAssociations"; ValueType: string; ValueName: ".md"; ValueData: "Draftly.md"
 Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "Draftly"; ValueData: "Software\Bytehawk Studio\Draftly\Capabilities"; Flags: uninsdeletevalue
 
 ; Optional file types (the checkboxes). Draftly is added to the type's "Open with" list.
@@ -104,11 +110,16 @@ Root: HKA; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueNa
 ; offers to open Settings > Default apps for Draftly, where one click makes it the default.
 Root: HKA; Subkey: "Software\Classes\.rtf\OpenWithProgids"; ValueType: string; ValueName: "Draftly.rtf"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assocrtf
 Root: HKA; Subkey: "Software\Classes\.txt\OpenWithProgids"; ValueType: string; ValueName: "Draftly.txt"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assoctxt
+Root: HKA; Subkey: "Software\Classes\.md\OpenWithProgids"; ValueType: string; ValueName: "Draftly.md"; ValueData: ""; Flags: uninsdeletevalue; Tasks: assocmd
 
 [Run]
-Filename: "ms-settings:defaultapps?registeredAppMachine=Draftly"; Description: "Open Default apps to make Draftly the default for the file types you chose"; Flags: shellexec nowait postinstall skipifsilent unchecked; Tasks: assocrtf assoctxt; Check: IsAdminInstallMode
-Filename: "ms-settings:defaultapps?registeredAppUser=Draftly"; Description: "Open Default apps to make Draftly the default for the file types you chose"; Flags: shellexec nowait postinstall skipifsilent unchecked; Tasks: assocrtf assoctxt; Check: not IsAdminInstallMode
+Filename: "ms-settings:defaultapps?registeredAppMachine=Draftly"; Description: "Open Default apps to make Draftly the default for the file types you chose"; Flags: shellexec nowait postinstall skipifsilent unchecked; Tasks: assocrtf assoctxt assocmd; Check: IsAdminInstallMode
+Filename: "ms-settings:defaultapps?registeredAppUser=Draftly"; Description: "Open Default apps to make Draftly the default for the file types you chose"; Flags: shellexec nowait postinstall skipifsilent unchecked; Tasks: assocrtf assoctxt assocmd; Check: not IsAdminInstallMode
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; Removes the per-user "Open with" entries Draftly adds when you click "Make Draftly the default" in its Settings.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--unregister-file-types"; Flags: runhidden waituntilterminated; RunOnceId: "UnregisterFileTypes"
 
 ; No [UninstallDelete]: uninstalling removes the program, shortcuts and registry entries.
 ; Your documents and settings (%APPDATA%\Draftly) are left alone.

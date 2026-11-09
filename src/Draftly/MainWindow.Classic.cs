@@ -323,12 +323,15 @@ public partial class MainWindow
         // ---- File
         var file = TopMenu("_File");
         file.Items.Add(Item("_New", NewDocument, "Ctrl+N", ""));
+        file.Items.Add(Item("New _window", NewWindow, "Ctrl+Shift+N"));
         file.Items.Add(Item("_Open…", OpenDocument, "Ctrl+O", ""));
         file.Items.Add(Item("_Save", () => Save(), "Ctrl+S", ""));
         file.Items.Add(Sub("Save _as",
             Item("_Rich Text document (.rtf)…", () => SaveAs(DocFormat.Rtf), "Ctrl+Shift+S"),
             Item("_Plain text document (.txt)…", () => SaveAs(DocFormat.Txt)),
+            Item("_Markdown document (.md)…", () => SaveAs(DocFormat.Md)),
             Item("_Other format…", () => SaveAs(null), "F12")));
+        file.Items.Add(Enabled(Item("Save a_ll", () => SaveAll()), () => _tabs.Count > 1));
         file.Items.Add(new Separator());
         file.Items.Add(Item("_Print…", Print, "Ctrl+P", ""));
         file.Items.Add(Item("Print pre_view", PrintPreview, "Ctrl+F2", ""));
@@ -346,7 +349,7 @@ public partial class MainWindow
             foreach (var f in files)
             {
                 var path = f;
-                var mi = Item($"_{n++}  {System.IO.Path.GetFileName(f)}", () => { if (ConfirmDiscard()) OpenFile(path); });
+                var mi = Item($"_{n++}  {System.IO.Path.GetFileName(f)}", () => OpenFromUser(path));
                 mi.ToolTip = f;
                 recent.Items.Add(mi);
             }
@@ -360,6 +363,7 @@ public partial class MainWindow
         file.Items.Add(new Separator());
         file.Items.Add(Item("Se_ttings…", () => OpenSettings(), "Ctrl+,", ""));
         file.Items.Add(new Separator());
+        file.Items.Add(Enabled(Item("_Close tab", () => CloseTab(_tab), "Ctrl+W"), () => S.UseTabs || _tabs.Count > 1));
         file.Items.Add(Item("E_xit", Close, "Alt+F4"));
         menu.Items.Add(file);
 
@@ -378,6 +382,8 @@ public partial class MainWindow
         edit.Items.Add(Item("_Find…", () => OpenFind(false), "Ctrl+F", ""));
         edit.Items.Add(Item("Find _next", () => HandleWindowShortcut(Key.F3, ModifierKeys.None), "F3"));
         edit.Items.Add(Item("R_eplace…", () => OpenFind(true), "Ctrl+H", ""));
+        edit.Items.Add(new Separator());
+        edit.Items.Add(Item("Time/_date", InsertNowTimeDate, "F5"));
         menu.Items.Add(edit);
 
         // ---- View
@@ -385,6 +391,9 @@ public partial class MainWindow
         view.Items.Add(Checked("_Ruler", () => S.ShowRuler, () => SetSetting(() => S.ShowRuler = !S.ShowRuler)));
         view.Items.Add(Checked("_Status bar", () => S.ShowStatusBar, () => SetSetting(() => S.ShowStatusBar = !S.ShowStatusBar)));
         view.Items.Add(Checked("Formatting _marks", () => S.ShowFormattingMarks, () => SetSetting(() => S.ShowFormattingMarks = !S.ShowFormattingMarks), "Ctrl+Shift+8"));
+        view.Items.Add(Checked("Line _numbers", () => S.ShowLineNumbers, () => SetSetting(() => S.ShowLineNumbers = !S.ShowLineNumbers), "Ctrl+Alt+L"));
+        view.Items.Add(Checked("_Tabs", () => S.UseTabs, () => SetSetting(() => S.UseTabs = !S.UseTabs)));
+        view.Items.Add(Enabled(Checked("Markdown _source", () => _tab.MarkdownSource, ToggleMarkdownSource, "Ctrl+Shift+M"), () => _format == DocFormat.Md));
         view.Items.Add(new Separator());
         view.Items.Add(Sub("_Word wrap",
             Checked("_No wrap", () => S.WordWrap == WrapMode.NoWrap, () => SetSetting(() => S.WordWrap = WrapMode.NoWrap)),
@@ -413,14 +422,37 @@ public partial class MainWindow
         var insert = TopMenu("_Insert");
         insert.Items.Add(Item("_Picture…", () => InsertPicture_Click(this, NoArgs), "", ""));
         insert.Items.Add(Item("_Date and time…", () => InsertDateTime_Click(this, NoArgs), "", ""));
+        insert.Items.Add(Item("_Link…", EditLink, "Ctrl+K"));
         insert.Items.Add(Item("_Object…", () => InsertObject_Click(this, NoArgs), "", ""));
         insert.Items.Add(new Separator());
         insert.Items.Add(Item("_Horizontal line", () => { InsertHorizontalLine(); Editor.Focus(); }));
         insert.Items.Add(Item("Page _break", () => { InsertPageBreak(); Editor.Focus(); }, "Ctrl+Enter"));
+        insert.Items.Add(new Separator());
+        bool InTable() => CurrentCell() != null;
+        insert.Items.Add(Sub("_Table",
+            Item("Insert _table…", () => InsertObject_Click(this, NoArgs)),
+            new Separator(),
+            Enabled(Item("Insert row _above", () => TableInsertRow(false)), InTable),
+            Enabled(Item("Insert row _below", () => TableInsertRow(true)), InTable),
+            Enabled(Item("Insert column _left", () => TableInsertColumn(false)), InTable),
+            Enabled(Item("Insert column _right", () => TableInsertColumn(true)), InTable),
+            new Separator(),
+            Enabled(Item("Delete r_ow", TableDeleteRow), InTable),
+            Enabled(Item("Delete c_olumn", TableDeleteColumn), InTable),
+            Enabled(Item("_Delete table", TableDelete), InTable)));
         menu.Items.Add(insert);
 
         // ---- Format
         var format = TopMenu("F_ormat");
+        ParaStyle CurStyle() => Editor.Selection.Start.Paragraph is Paragraph sp ? ParagraphStyles.Detect(sp) : ParaStyle.Normal;
+        var styleItems = new List<object>();
+        foreach (var (style, name, shortcut) in ParagraphStyles.All)
+        {
+            var st = style;
+            styleItems.Add(Checked(name, () => CurStyle() == st, () => ApplyParagraphStyle(st), shortcut));
+        }
+        format.Items.Add(Sub("_Style", styleItems.ToArray()));
+        format.Items.Add(new Separator());
         format.Items.Add(Checked("_Bold", () => BoldBtn.IsChecked == true, () => Bold_Click(this, NoArgs), "Ctrl+B"));
         format.Items.Add(Checked("_Italic", () => ItalicBtn.IsChecked == true, () => Italic_Click(this, NoArgs), "Ctrl+I"));
         format.Items.Add(Checked("_Underline", () => UnderlineBtn.IsChecked == true, () => Underline_Click(this, NoArgs), "Ctrl+U"));

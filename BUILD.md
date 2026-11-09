@@ -47,7 +47,7 @@ If you installed Inno Setup for your user only, the compiler is at `%LOCALAPPDAT
 
 ## Testing
 
-`Draftly.exe --self-test result.txt screenshots` runs Draftly's built-in test. It creates and formats a document, inserts a picture, saves it as RTF, reopens it and checks every piece of formatting survived. It also checks Light, Dark and Follow System for readable contrast and that the choice persists, plus Find/Replace, Undo/Redo, keyboard shortcuts, the clipboard, the save prompt, plain text and Word import, Print Preview, view options and every dialog. It writes PASS/FAIL lines to `result.txt` and screenshots to `screenshots`. It uses a temporary settings folder, so your own settings aren't touched.
+`Draftly.exe --self-test result.txt screenshots` runs Draftly's built-in test. It creates and formats a document, inserts a picture, saves it as RTF, reopens it and checks every piece of formatting survived. It also checks Light, Dark and Follow System for readable contrast and that the choice persists, plus Find/Replace, Undo/Redo, keyboard shortcuts, the clipboard, the save prompt, plain text and Word import, Print Preview, view options and every dialog, and (since 1.2.0) tabs, session restore, opening files from a second launch, headings, Markdown shortcuts and files, links, table editing, line numbers, line endings and registering the file types. It writes PASS/FAIL lines to `result.txt` and screenshots to `screenshots`. It uses a temporary settings folder, so your own settings aren't touched.
 
 GitHub runs this on every push, along with an installer test: install to Program Files, check the Start Menu shortcut, uninstall entry, file types and icon, start the app, then uninstall and check nothing is left behind.
 

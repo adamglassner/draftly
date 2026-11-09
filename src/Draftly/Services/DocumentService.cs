@@ -6,7 +6,7 @@ using System.Windows.Media;
 
 namespace Draftly.Services;
 
-public enum DocFormat { Rtf, Txt, Docx }
+public enum DocFormat { Rtf, Txt, Docx, Md }
 
 public static class DocumentService
 {
@@ -17,16 +17,19 @@ public static class DocumentService
     }
 
     public const string OpenFilter =
-        "All supported documents (*.rtf;*.txt;*.docx)|*.rtf;*.txt;*.docx|" +
+        "All supported documents (*.rtf;*.txt;*.md;*.docx)|*.rtf;*.txt;*.md;*.markdown;*.docx|" +
         "Rich Text Format (*.rtf)|*.rtf|" +
         "Text documents (*.txt)|*.txt|" +
+        "Markdown (*.md)|*.md;*.markdown|" +
         "Word documents - import (*.docx)|*.docx|" +
         "All files (*.*)|*.*";
 
+    /// <summary>Filter indexes: 1 RTF, 2 TXT, 3 Unicode TXT, 4 Markdown.</summary>
     public const string SaveFilter =
         "Rich Text Format (*.rtf)|*.rtf|" +
         "Text document (*.txt)|*.txt|" +
-        "Unicode text document (*.txt)|*.txt";
+        "Unicode text document (*.txt)|*.txt|" +
+        "Markdown (*.md)|*.md";
 
     public static DocFormat FormatFromPath(string path)
     {
@@ -35,6 +38,7 @@ public static class DocumentService
         {
             ".rtf" => DocFormat.Rtf,
             ".docx" => DocFormat.Docx,
+            ".md" or ".markdown" => DocFormat.Md,
             _ => DocFormat.Txt,
         };
     }
@@ -45,7 +49,8 @@ public static class DocumentService
     {
         public FlowDocument Document;
         public DocFormat Format;
-        public Encoding TextEncoding;   // for TXT files
+        public Encoding TextEncoding;   // for TXT and Markdown files
+        public string LineEnding = "\r\n";  // for TXT and Markdown files: "\r\n", "\n" or "\r"
         public string Warning;          // shown in the info bar, if any
     }
 
@@ -71,7 +76,10 @@ public static class DocumentService
             throw new InvalidDataException("This file has an .rtf extension but does not contain Rich Text. It may be damaged.");
 
         var text = ReadText(path, out var enc);
-        return new LoadResult { Document = FromPlainText(text), Format = DocFormat.Txt, TextEncoding = enc };
+        var nl = DetectLineEnding(text);
+        if (fmt == DocFormat.Md)
+            return new LoadResult { Document = MarkdownService.ToDocument(text), Format = DocFormat.Md, TextEncoding = enc, LineEnding = nl };
+        return new LoadResult { Document = FromPlainText(text), Format = DocFormat.Txt, TextEncoding = enc, LineEnding = nl };
     }
 
     public static FlowDocument LoadRtf(string path)
@@ -109,6 +117,27 @@ public static class DocumentService
         }
     }
 
+    /// <summary>Which line ending a text file mostly uses (Windows CRLF, Unix LF or old Mac CR).</summary>
+    public static string DetectLineEnding(string text)
+    {
+        int crlf = 0, lf = 0, cr = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] == '\r') { if (i + 1 < text.Length && text[i + 1] == '\n') { crlf++; i++; } else cr++; }
+            else if (text[i] == '\n') lf++;
+        }
+        if (lf > crlf && lf >= cr) return "\n";
+        if (cr > crlf && cr > lf) return "\r";
+        return "\r\n";
+    }
+
+    public static string LineEndingLabel(string nl) => nl switch
+    {
+        "\n" => "Unix (LF)",
+        "\r" => "Macintosh (CR)",
+        _ => "Windows (CRLF)",
+    };
+
     public static FlowDocument FromPlainText(string text)
     {
         var doc = NewDocument();
@@ -145,7 +174,7 @@ public static class DocumentService
     /// Saves the document. In dark mode the page shows light text, but "automatic" text is always
     /// written to disk as black so the file looks right in WordPad, Word, etc.
     /// </summary>
-    public static void Save(FlowDocument doc, string path, DocFormat format, Encoding textEncoding = null)
+    public static void Save(FlowDocument doc, string path, DocFormat format, Encoding textEncoding = null, string lineEnding = "\r\n", bool markdownSource = false)
     {
         var tmp = path + ".draftly-tmp";
         try
@@ -156,10 +185,18 @@ public static class DocumentService
                 WithBlackText(doc, () => rtf = RtfBaseline.ToRtf(new TextRange(doc.ContentStart, doc.ContentEnd), doc));
                 File.WriteAllBytes(tmp, Encoding.Latin1.GetBytes(rtf));
             }
+            else if (format == DocFormat.Md && !markdownSource)
+            {
+                var enc = textEncoding ?? new UTF8Encoding(false);
+                File.WriteAllText(tmp, MarkdownService.FromDocument(doc, lineEnding ?? "\r\n"), enc);
+            }
             else
             {
-                var enc = textEncoding ?? EncodingFor(SettingsService.Current.TextEncoding);
-                File.WriteAllText(tmp, GetPlainText(doc), enc);
+                // Plain text, or a Markdown file shown as source: the text is written as it is.
+                var enc = textEncoding ?? (format == DocFormat.Md ? new UTF8Encoding(false) : EncodingFor(SettingsService.Current.TextEncoding));
+                var text = GetPlainText(doc);
+                if (lineEnding != null && lineEnding != "\r\n") text = text.Replace("\r\n", lineEnding);
+                File.WriteAllText(tmp, text, enc);
             }
 
             if (File.Exists(path) && SettingsService.Current.KeepBackupOnSave)
@@ -175,19 +212,55 @@ public static class DocumentService
         }
     }
 
-    /// <summary>Runs an action with "automatic" text temporarily black (for saving, copying and printing).</summary>
+    /// <summary>
+    /// Runs an action with "automatic" text temporarily black and links in Word's standard link blue
+    /// (for saving, copying and printing), whatever the on-screen theme is.
+    /// </summary>
     public static void WithBlackText(FlowDocument doc, Action action)
     {
         var local = doc.ReadLocalValue(TextElement.ForegroundProperty);
+        var links = Walk(doc.Blocks).OfType<Hyperlink>().Select(h => (h, h.ReadLocalValue(TextElement.ForegroundProperty))).ToList();
         try
         {
             doc.Foreground = Brushes.Black;
+            foreach (var (h, _) in links) h.Foreground = PrintLinkBrush;
             action();
         }
         finally
         {
             if (local == DependencyProperty.UnsetValue) doc.ClearValue(TextElement.ForegroundProperty);
             else doc.SetValue(TextElement.ForegroundProperty, local);
+            foreach (var (h, v) in links)
+            {
+                if (v == DependencyProperty.UnsetValue) h.ClearValue(TextElement.ForegroundProperty);
+                else h.SetValue(TextElement.ForegroundProperty, v);
+            }
+        }
+    }
+
+    private static readonly SolidColorBrush PrintLinkBrush = FrozenBrush(0x05, 0x63, 0xC1);
+    private static readonly SolidColorBrush DarkLinkBrush = FrozenBrush(0x6C, 0xB4, 0xFF);
+    private static SolidColorBrush FrozenBrush(byte r, byte g, byte b) { var x = new SolidColorBrush(Color.FromRgb(r, g, b)); x.Freeze(); return x; }
+
+    /// <summary>Gives links a colour that's readable on the current page (blue on white, light blue on the dark page).</summary>
+    public static void ApplyLinkColors(FlowDocument doc, bool darkPage)
+    {
+        foreach (var h in Walk(doc.Blocks).OfType<Hyperlink>())
+        {
+            h.Foreground = darkPage ? DarkLinkBrush : PrintLinkBrush;
+            // Text inside the link that was saved with the link colour shouldn't override it.
+            foreach (var r in DescendantRuns(h.Inlines))
+                if (r.Foreground is SolidColorBrush b && r.ReadLocalValue(TextElement.ForegroundProperty) != DependencyProperty.UnsetValue && b.Color.B > 0x90 && b.Color.R < 0x70)
+                    r.ClearValue(TextElement.ForegroundProperty);
+        }
+    }
+
+    private static IEnumerable<Run> DescendantRuns(InlineCollection inlines)
+    {
+        foreach (var i in inlines)
+        {
+            if (i is Run r) yield return r;
+            else if (i is Span s) foreach (var x in DescendantRuns(s.Inlines)) yield return x;
         }
     }
 

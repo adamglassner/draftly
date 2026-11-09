@@ -19,22 +19,13 @@ namespace Draftly;
 
 public partial class MainWindow : Window
 {
-    // ---- document state ----
-    private string _path;                 // null = untitled
-    private DocFormat _format = DocFormat.Rtf;
-    private Encoding _encoding;           // for .txt files
-    private bool _dirty;
+    // ---- document state (per tab: see MainWindow.Tabs.cs) ----
     private int _suppressDirty;
-    private PageLayout _layout;
-    private string _recoveredFrom;        // original path of a recovered document
-    private string _importedFrom;         // .docx this document was imported from
     private string _pendingRecovery;      // recovery file offered in the info bar
 
     // ---- view state ----
     private double _zoom = 1.0;
     private bool _updatingUi;
-    private FormattingMarksAdorner _marks;
-    private CurrentLineAdorner _currentLine;
     private readonly DispatcherTimer _statusTimer;
     private readonly DispatcherTimer _recoveryTimer;
     private double _scrollTarget = double.NaN;
@@ -42,20 +33,23 @@ public partial class MainWindow : Window
 
     private static AppSettings S => SettingsService.Current;
 
-    public MainWindow(string fileToOpen)
+    public MainWindow(string[] filesToOpen, bool newWindow = false)
     {
         InitializeComponent();
         ThemeManager.Attach(this);
-        Editor.IsInactiveSelectionHighlightEnabled = true;   // keep Find results visible while the Find window has focus
         RestoreWindowPlacement();
 
-        _layout = PageLayout.FromSettings(S);
+        InitTabs();
         PopulateFontLists();
 
         _statusTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
         _statusTimer.Tick += (_, _) => { _statusTimer.Stop(); UpdateStatus(); };
         _recoveryTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(Math.Max(1, S.AutoRecoveryMinutes)) };
-        _recoveryTimer.Tick += (_, _) => { if (_dirty && S.AutoRecovery) RecoveryService.Write(Editor.Document, _path, DocName); };
+        _recoveryTimer.Tick += (_, _) =>
+        {
+            if (!S.AutoRecovery) return;
+            foreach (var t in _tabs.Where(x => x.Dirty)) RecoveryService.Write(t.Box.Document, t.Path, DocNameOf(t), t.Key);
+        };
 
         SetDocument(DocumentService.NewDocument());
         _format = S.SaveFormat == DefaultSaveFormat.Txt ? DocFormat.Txt : DocFormat.Rtf;
@@ -70,14 +64,7 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) =>
         {
-            var layer = AdornerLayer.GetAdornerLayer(Editor);
-            if (layer != null)
-            {
-                _currentLine = new CurrentLineAdorner(Editor);
-                layer.Add(_currentLine);
-                _marks = new FormattingMarksAdorner(Editor) { VisibleRegion = VisibleEditorRegion };
-                layer.Add(_marks);
-            }
+            AttachAdorners(_tab);
             ApplySettings();
             SetZoom(S.DefaultZoom / 100.0);
 
@@ -86,9 +73,8 @@ public partial class MainWindow : Window
                 Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(async () => await RunSelfTestAsync(App.SelfTestOutput, App.SelfTestShots)));
                 return;
             }
-            if (fileToOpen != null) OpenFile(fileToOpen);
-            else if (S.ReopenLastDocument && File.Exists(S.LastSessionFile)) OpenFile(S.LastSessionFile);
-            CheckForRecovery();
+            if (newWindow) { foreach (var f in filesToOpen) OpenFromUser(f); OfferDefaultApp(); }
+            else StartupOpen(filesToOpen);
 
             Editor.Focus();
             UpdateFormattingUi();
@@ -98,10 +84,7 @@ public partial class MainWindow : Window
 
     // ================================================================== document plumbing
 
-    private string DocName =>
-        _path != null ? Path.GetFileName(_path) :
-        _importedFrom != null ? Path.GetFileName(_importedFrom) :
-        _recoveredFrom != null ? "Recovered - " + Path.GetFileName(_recoveredFrom) : "Document";
+    private string DocName => DocNameOf(_tab);
 
     private void SetDocument(FlowDocument doc)
     {
@@ -114,6 +97,7 @@ public partial class MainWindow : Window
             DocumentService.NormaliseAutomaticColour(doc);
             DocumentService.PushDownDecorations(doc.Blocks);
             DocumentService.FixHighlightContrast(DocumentService.Walk(doc.Blocks));
+            DocumentService.ApplyLinkColors(doc, ThemeManager.IsDarkPage);
             Editor.Document = doc;
             UpdatePageLayout();
             Editor.CaretPosition = doc.ContentStart;
@@ -129,7 +113,8 @@ public partial class MainWindow : Window
     {
         _dirty = dirty;
         Title = (dirty ? "*" : "") + DocName + " - Draftly";
-        if (!dirty) RecoveryService.Clear();
+        if (!dirty) RecoveryService.Clear(_tab.Key);
+        UpdateTabHeader(_tab);
     }
 
     // ================================================================== settings & theme
@@ -152,11 +137,17 @@ public partial class MainWindow : Window
 
             UpdateRibbonDensity();
             ApplyInterfaceStyle();
-            Editor.SpellCheck.IsEnabled = S.SpellCheck;
-            Editor.AutoWordSelection = S.SelectWholeWords;
+            ShowLineNumbersBtn.IsChecked = S.ShowLineNumbers;
+            foreach (var t in _tabs)
+            {
+                t.Box.SpellCheck.IsEnabled = S.SpellCheck;
+                t.Box.AutoWordSelection = S.SelectWholeWords;
+                if (t.Marks != null) t.Marks.ShowMarks = S.ShowFormattingMarks;
+                if (t.CurrentLine != null) t.CurrentLine.Visibility = S.HighlightCurrentLine ? Visibility.Visible : Visibility.Collapsed;
+                if (t.LineNumbers != null) t.LineNumbers.Show = S.ShowLineNumbers;
+            }
             Ruler.Unit = S.Units;
-            if (_marks != null) _marks.ShowMarks = S.ShowFormattingMarks;
-            if (_currentLine != null) _currentLine.Visibility = S.HighlightCurrentLine ? Visibility.Visible : Visibility.Collapsed;
+            UpdateTabStrip();
             _recoveryTimer.Interval = TimeSpan.FromMinutes(Math.Max(1, S.AutoRecoveryMinutes));
             if (S.AutoRecovery) _recoveryTimer.Start(); else { _recoveryTimer.Stop(); RecoveryService.Clear(); }
         }
@@ -182,6 +173,7 @@ public partial class MainWindow : Window
         ThemeDarkBtn.IsChecked = S.Theme == ThemeMode.Dark;
         ThemeSystemBtn.IsChecked = S.Theme == ThemeMode.System;
         _updatingUi = false;
+        foreach (var t in _tabs) DocumentService.ApplyLinkColors(t.Box.Document, ThemeManager.IsDarkPage);
         Ruler.Refresh();
         RefreshOverlays();
     }
@@ -223,6 +215,7 @@ public partial class MainWindow : Window
     private void ShowRuler_Click(object sender, RoutedEventArgs e) { S.ShowRuler = ShowRulerBtn.IsChecked == true; SettingsService.Commit(); }
     private void ShowStatus_Click(object sender, RoutedEventArgs e) { S.ShowStatusBar = ShowStatusBtn.IsChecked == true; SettingsService.Commit(); }
     private void ShowMarks_Click(object sender, RoutedEventArgs e) { S.ShowFormattingMarks = ShowMarksBtn.IsChecked == true; SettingsService.Commit(); }
+    private void ShowLineNumbers_Click(object sender, RoutedEventArgs e) { S.ShowLineNumbers = ShowLineNumbersBtn.IsChecked == true; SettingsService.Commit(); }
 
     private void WrapBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -270,6 +263,9 @@ public partial class MainWindow : Window
                 minHeight = _layout.PaperHeight;
                 break;
         }
+
+        // Line numbers sit in the left margin, so make sure there's room for them.
+        if (S.ShowLineNumbers && padding.Left < 46) padding = new Thickness(46, padding.Top, padding.Right, padding.Bottom);
 
         Editor.Width = width;
         Editor.MinHeight = minHeight;
@@ -425,6 +421,7 @@ public partial class MainWindow : Window
     {
         _marks?.Schedule();
         _currentLine?.Refresh();
+        _tab?.LineNumbers?.Schedule();
     }
 
     // ================================================================== scrolling & caret
@@ -500,6 +497,7 @@ public partial class MainWindow : Window
 
     private void Editor_TextChanged(object sender, TextChangedEventArgs e)
     {
+        if (sender != Editor || _tab == null) return;   // a background tab (or still starting up)
         if (_suppressDirty == 0 && !_dirty) SetDirty(true);
         _statusTimer.Stop();
         _statusTimer.Start();
@@ -509,8 +507,10 @@ public partial class MainWindow : Window
 
     private void Editor_SelectionChanged(object sender, RoutedEventArgs e)
     {
+        if (sender != Editor || _tab == null) return;   // a background tab (or still starting up)
         UpdateFormattingUi();
         _currentLine?.Refresh();
+        _tab?.LineNumbers?.Schedule();
         _statusTimer.Stop();
         _statusTimer.Start();
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateRuler));
@@ -535,7 +535,11 @@ public partial class MainWindow : Window
             WordInfo.Text = $"{WordRegex.Matches(sel).Count:N0} of {words:N0} words";
         }
         else WordInfo.Text = words == 1 ? "1 word" : $"{words:N0} words";
+        CharInfo.Text = !Editor.Selection.IsEmpty
+            ? $"{Editor.Selection.Text.Count(c => c != '\r' && c != '\n'):N0} of {chars:N0} characters"
+            : chars == 1 ? "1 character" : $"{chars:N0} characters";
         WordCountBtn.ToolTip = $"{chars:N0} characters. Click for details.";
+        UpdateLinkStatus();
 
         try
         {
@@ -558,9 +562,15 @@ public partial class MainWindow : Window
         FormatInfo.Text = _format switch
         {
             DocFormat.Txt => "Plain text" + (_encoding != null ? " · " + DocumentService.EncodingLabel(_encoding) : ""),
+            DocFormat.Md => _tab.MarkdownSource ? "Markdown (source)" : "Markdown",
             DocFormat.Docx => "Word document (imported)",
             _ => "Rich Text",
         };
+        bool plain = _format is DocFormat.Txt or DocFormat.Md;
+        LineEndingBtn.Visibility = plain ? Visibility.Visible : Visibility.Collapsed;
+        LineEndingInfo.Text = DocumentService.LineEndingLabel(_tab.LineEnding);
+        MarkdownViewBtn.Visibility = _format == DocFormat.Md ? Visibility.Visible : Visibility.Collapsed;
+        MarkdownViewInfo.Text = _tab.MarkdownSource ? "Show formatted" : "Show source";
     }
 
     private void WordCount_Click(object sender, RoutedEventArgs e)
@@ -580,8 +590,12 @@ public partial class MainWindow : Window
 
     // ================================================================== info bar
 
+    private bool _infoIsWindowLevel;   // a prompt (with a button) rather than a note about the current tab
+
     private void ShowInfo(string text, string actionLabel = null, Action action = null)
     {
+        _infoIsWindowLevel = action != null;
+        if (!_infoIsWindowLevel && _tab != null) _tab.Info = text;
         InfoText.Text = text;
         _infoAction = action;
         InfoAction.Visibility = action != null ? Visibility.Visible : Visibility.Collapsed;
@@ -592,6 +606,8 @@ public partial class MainWindow : Window
 
     private void HideInfo()
     {
+        if (!_infoIsWindowLevel && _tab != null) _tab.Info = null;
+        _infoIsWindowLevel = false;
         InfoBar.Visibility = Visibility.Collapsed;
         _infoAction = null;
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(UpdateRuler));
@@ -627,7 +643,8 @@ public partial class MainWindow : Window
         ShowInfo($"Draftly found unsaved work from {info.SavedAt:g} ({info.DisplayName}). Restore it? Close this bar to delete it.",
             "Restore", () =>
             {
-                if (!ConfirmDiscard()) return;
+                if (S.UseTabs) { if (!IsReusable(_tab)) NewTab(); }
+                else if (!ConfirmDiscard()) return;
                 try
                 {
                     var doc = DocumentService.LoadRtf(rtf);
@@ -640,7 +657,7 @@ public partial class MainWindow : Window
                     SetDirty(true);
                     RecoveryService.Discard(rtf);
                     _pendingRecovery = null;
-                    RecoveryService.Write(Editor.Document, null, DocName);
+                    RecoveryService.Write(Editor.Document, null, DocName, _tab.Key);
                 }
                 catch (Exception ex)
                 {
@@ -652,7 +669,7 @@ public partial class MainWindow : Window
     /// <summary>Called by the crash handler.</summary>
     public void EmergencySave()
     {
-        if (_dirty) RecoveryService.Write(Editor.Document, _path, DocName);
+        foreach (var t in _tabs.Where(x => x.Dirty)) RecoveryService.Write(t.Box.Document, t.Path, DocNameOf(t), t.Key);
     }
 
     // ================================================================== window placement & closing
@@ -684,19 +701,6 @@ public partial class MainWindow : Window
         S.WinMaximized = WindowState == WindowState.Maximized;
         S.LastSessionFile = _path ?? "";
         SettingsService.Save();
-    }
-
-    private bool _closingConfirmed;
-
-    private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-    {
-        if (_closingConfirmed) return;
-        if (!ConfirmDiscard()) { e.Cancel = true; return; }
-        _closingConfirmed = true;
-        SaveWindowPlacement();
-        RecoveryService.Clear();
-        _findWindow?.Close();
-        CompositionTarget.Rendering -= SmoothScrollTick;
     }
 }
 
