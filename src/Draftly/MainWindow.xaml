@@ -214,30 +214,28 @@
                             <StackPanel Orientation="Horizontal">
                                 <Button Style="{StaticResource RibbonLarge}" Tag="&#xE8A3;" Content="Zoom in" Click="ZoomIn_Click" ToolTip="Zoom in (Ctrl+Plus)"/>
                                 <Button Style="{StaticResource RibbonLarge}" Tag="&#xE71F;" Content="Zoom out" Click="ZoomOut_Click" ToolTip="Zoom out (Ctrl+Minus)"/>
-                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE71E;" Content="100%" Click="Zoom100_Click" ToolTip="Zoom to 100% (Ctrl+0)"/>
-                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE7C3;" Content="Page width" Click="ZoomPageWidth_Click" ToolTip="Fit the page width to the window"/>
+                                <StackPanel VerticalAlignment="Top">
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE71E;" Content="100%" Click="Zoom100_Click" ToolTip="Zoom to 100% (Ctrl+0)"/>
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE7C3;" Content="Page width" Click="ZoomPageWidth_Click" ToolTip="Fit the page width to the window"/>
+                                </StackPanel>
                             </StackPanel>
                         </HeaderedContentControl>
                         <Rectangle Style="{StaticResource GroupDivider}"/>
 
                         <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Show or hide">
+                            <StackPanel Orientation="Horizontal">
                             <StackPanel VerticalAlignment="Center">
                                 <ToggleButton x:Name="ShowRulerBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xECC6;" Content="Ruler" Click="ShowRuler_Click"/>
                                 <ToggleButton x:Name="ShowStatusBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE8A1;" Content="Status bar" Click="ShowStatus_Click"/>
                                 <ToggleButton x:Name="ShowMarksBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE8D2;" Content="Formatting marks" Click="ShowMarks_Click"
                                               ToolTip="Show paragraph marks, spaces and tabs (Ctrl+Shift+8)"/>
                             </StackPanel>
-                        </HeaderedContentControl>
-                        <Rectangle Style="{StaticResource GroupDivider}"/>
-
-                        <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="Document">
-                            <StackPanel VerticalAlignment="Center">
+                            <StackPanel VerticalAlignment="Top">
                                 <ToggleButton x:Name="ShowLineNumbersBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE8FD;" Content="Line numbers" Click="ShowLineNumbers_Click"
                                               ToolTip="Number the lines in the margin, on screen only (Ctrl+Alt+L)"/>
                                 <ToggleButton x:Name="UseTabsBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE7C4;" Content="Tabs" Click="UseTabs_Click"
                                               ToolTip="Open documents in tabs in one window"/>
-                                <ToggleButton x:Name="MarkdownSourceBtn" Style="{StaticResource RibbonSmallToggle}" Tag="&#xE943;" Content="Markdown source" Click="MarkdownSource_Click"
-                                              ToolTip="Show a Markdown file's formatting or its source text (Ctrl+Shift+M)"/>
+                            </StackPanel>
                             </StackPanel>
                         </HeaderedContentControl>
                         <Rectangle Style="{StaticResource GroupDivider}"/>
@@ -276,9 +274,11 @@
 
                         <HeaderedContentControl Style="{StaticResource RibbonGroup}" Header="More">
                             <StackPanel Orientation="Horizontal">
-                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE700;" Content="Classic menus" Click="UseClassic_Click"
-                                        ToolTip="Switch to a menu bar and toolbars instead of the ribbon (you can switch back in View or Settings)"/>
-                                <Button Style="{StaticResource RibbonLarge}" Tag="&#xE713;" Content="All settings" Click="Settings_Click"/>
+                                <StackPanel VerticalAlignment="Top">
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE700;" Content="Classic menus" Click="UseClassic_Click"
+                                            ToolTip="Classic menus: switch to a menu bar and toolbars instead of the ribbon (you can switch back in View or Settings)"/>
+                                    <Button Style="{StaticResource RibbonSmall}" Tag="&#xE713;" Content="All settings" Click="Settings_Click" ToolTip="All settings (Ctrl+,)"/>
+                                </StackPanel>
                             </StackPanel>
                         </HeaderedContentControl>
                     </StackPanel>
