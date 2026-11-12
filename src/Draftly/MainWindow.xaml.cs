@@ -40,6 +40,7 @@ public partial class MainWindow : Window
         RestoreWindowPlacement();
 
         InitTabs();
+        InitRibbonHide();
         PopulateFontLists();
 
         _statusTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
@@ -137,6 +138,7 @@ public partial class MainWindow : Window
 
             UpdateRibbonDensity();
             ApplyInterfaceStyle();
+            ApplyRibbonDisplay();
             ShowLineNumbersBtn.IsChecked = S.ShowLineNumbers;
             foreach (var t in _tabs)
             {

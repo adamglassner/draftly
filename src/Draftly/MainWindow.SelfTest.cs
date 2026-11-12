@@ -118,8 +118,9 @@ public partial class MainWindow
         await Test("Settings are saved and reloaded", SettingsPersist);
         await Test("Every dialog opens in Light and Dark", DialogsOpen);
         await RunNotepadTestsAsync();
+        await Test("Automatically hide toolbar (ribbon)", RibbonAutoHideWorks);
         await Test("Toolbar fits a 1024-pixel-wide screen and large buttons line up", RibbonFits);
-        await Test("What's new (changelog) is built in", () => Assert(Dialogs.SettingsWindow.WhatsNew("1.2.0") != null, "CHANGELOG.md section for 1.2.0 missing from the exe"));
+        await Test("What's new (changelog) is built in", () => Assert(Dialogs.SettingsWindow.WhatsNew("1.2.1") != null, "CHANGELOG.md section for 1.2.1 missing from the exe"));
         await Test("Classic interface: menus, toolbars and switching back", ClassicInterfaceWorks);
         await Test("Screenshots", TakeScreenshots);
 

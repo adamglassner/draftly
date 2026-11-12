@@ -9,7 +9,7 @@
 
 #define MyAppName "Draftly"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.2.0"
+  #define MyAppVersion "1.2.1"
 #endif
 #define MyAppPublisher "Bytehawk Studio"
 #define MyAppExeName "Draftly.exe"

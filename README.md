@@ -16,6 +16,7 @@ Choose your interface in **Settings › Appearance › Interface** (or the View 
 - **Headings and styles:** Title, Heading 1–3, Quote and Code, plus Markdown shortcuts while typing (`# `, `- `, `1. `, `> `)
 - **Links:** Ctrl+K to insert, Ctrl+click to open
 - **Line numbers** in the margin (on screen only)
+- **Automatically hide toolbar:** collapse the ribbon to its tab names, like Paint (the arrow at the top right, or Ctrl+F1)
 - **Markdown (.md) files:** open formatted, switch to the source text, save back as Markdown
 - **Default app:** make Draftly the app that opens .rtf (and .txt / .md) files, from Settings › Files and saving
 - **Clipboard:** Cut, Copy, Paste, Paste special (formatted, plain text or picture)

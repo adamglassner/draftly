@@ -180,6 +180,10 @@ public sealed class SettingsWindow : Window
         }
         sp.Children.Add(styles);
         sp.Children.Add(Hint("Ribbon has Home and View tabs like WordPad in Windows 10 and 11. Classic has a menu bar (File, Edit, View, Insert, Format, Help) with a standard toolbar and a formatting toolbar, like older WordPad and Word. Both have every command."));
+        if (S.Interface == InterfaceStyle.Ribbon)
+            sp.Children.Add(Card(
+                Setting("Automatically hide toolbar", "Like Paint: only the Home and View tab names stay at the top. Click one to show the ribbon over the page; it hides again when you go back to your document. Ctrl+F1 or double-clicking a tab switches this too.",
+                    Toggle(S.AutoHideRibbon, v => S.AutoHideRibbon = v))));
 
         sp.Children.Add(H("Theme"));
         var themes = new StackPanel { Orientation = Orientation.Horizontal };
@@ -442,7 +446,7 @@ public sealed class SettingsWindow : Window
                 ("Align left / center / right / justify", "Ctrl+L / E / R / J"), ("Line spacing 1 / 1.5 / 2", "Ctrl+1 / Ctrl+5 / Ctrl+2"),
                 ("Heading 1 / 2 / 3", "Ctrl+Alt+1 / 2 / 3"), ("Title", "Ctrl+Alt+T"), ("Normal text", "Ctrl+Alt+0"),
                 ("Heading while typing", "# / ## / ### then Space"), ("List or quote while typing", "- or 1. or > then Space") }),
-            ("View", new[] { ("Zoom in / out", "Ctrl+Numpad+ / Ctrl+Minus or Ctrl+wheel"), ("Reset zoom", "Ctrl+0"), ("Formatting marks", "Ctrl+Shift+8"), ("Line numbers", "Ctrl+Alt+L"),
+            ("View", new[] { ("Zoom in / out", "Ctrl+Numpad+ / Ctrl+Minus or Ctrl+wheel"), ("Reset zoom", "Ctrl+0"), ("Formatting marks", "Ctrl+Shift+8"), ("Line numbers", "Ctrl+Alt+L"), ("Hide or show the toolbar", "Ctrl+F1"),
                 ("Markdown formatted / source", "Ctrl+Shift+M"), ("Settings", "Ctrl+,") }),
         };
         foreach (var (title, rows) in groups)

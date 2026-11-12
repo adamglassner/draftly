@@ -2,6 +2,15 @@
 
 All notable changes to Draftly. Newest first.
 
+## 1.2.1 - 2026-11-11
+
+### Added
+- **Automatically hide toolbar** (ribbon interface), like Windows 11 Paint. The new arrow button at the top right gives the choice between "Always show toolbar" and "Automatically hide toolbar".
+  - When the toolbar is hidden, only the Home and View tab names stay at the top and the page gets the extra room.
+  - Click a tab to drop the ribbon down over the page. It hides again after you use a command, click the page, press Esc or switch to another window.
+  - Ctrl+F1 or double-clicking a tab also switches it, and there's a setting in Settings › Appearance.
+- A self-test for the hidden toolbar.
+
 ## 1.2.0 - 2026-11-08
 
 The features Windows 11 Notepad added, plus line numbers and default-app setup.

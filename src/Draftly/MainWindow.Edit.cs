@@ -680,6 +680,7 @@ public partial class MainWindow : FindReplaceWindow.IHost
 
         if (ctrl && (key == Key.N || key == Key.T)) NewDocument();
         else if (ctrlShift && key == Key.N) NewWindow();
+        else if (ctrl && key == Key.F1 && !IsClassic) SetRibbonAutoHide(!S.AutoHideRibbon);
         else if ((ctrl && key == Key.W) || (ctrl && key == Key.F4)) { if (S.UseTabs || _tabs.Count > 1) CloseTab(_tab); else Close(); }
         else if ((ctrl && key == Key.Tab) || (ctrl && key == Key.PageDown)) NextTab(+1);
         else if ((ctrlShift && key == Key.Tab) || (ctrl && key == Key.PageUp)) NextTab(-1);

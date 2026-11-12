@@ -432,4 +432,45 @@ public partial class MainWindow
         Assert(!FileAssociations.IsRegistered(".rtf"), "Unregister left Draftly registered");
         return Task.CompletedTask;
     }
+
+    private async Task RibbonAutoHideWorks()
+    {
+        try
+        {
+            double pageTop = EditorScroll.TranslatePoint(new Point(0, 0), this).Y;
+            S.AutoHideRibbon = true; SettingsService.Commit();
+            await Settle(250);
+            Assert(TabRow.IsVisible && !RootGrid.Children.Contains(RibbonBorder) && !RibbonBorder.IsVisible, "the ribbon is still in the window");
+            Assert(EditorScroll.TranslatePoint(new Point(0, 0), this).Y < pageTop - 60, "the page didn't move up into the ribbon's space");
+
+            TabHome.IsChecked = true;
+            TabHome.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, TabHome));
+            await Settle(300);
+            Assert(RibbonPopup.IsOpen && RibbonBorder.IsVisible && HomePanel.IsVisible, "clicking Home didn't show the ribbon");
+            Assert(Math.Abs(RibbonBorder.ActualWidth - (TabRow.ActualWidth - 16)) < 2, $"the dropped-down ribbon is {RibbonBorder.ActualWidth:0} px wide");
+
+            TabHome.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, TabHome));
+            await Settle(200);
+            Assert(!RibbonPopup.IsOpen, "clicking Home again didn't hide the ribbon");
+
+            // Using a command hides it again.
+            TabHome.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, TabHome));
+            await Settle(200);
+            TypeText("auto hide");
+            Editor.SelectAll();
+            BoldBtn.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, BoldBtn));
+            await Settle(300);
+            Assert(!RibbonPopup.IsOpen, "the ribbon stayed open after Bold");
+
+            Assert(HandleWindowShortcut(Key.F1, ModifierKeys.Control), "Ctrl+F1 not handled");
+            await Settle(250);
+            Assert(!S.AutoHideRibbon && RootGrid.Children.Contains(RibbonBorder) && RibbonBorder.IsVisible, "Ctrl+F1 didn't bring the toolbar back");
+            Assert(Math.Abs(EditorScroll.TranslatePoint(new Point(0, 0), this).Y - pageTop) < 2, "the page didn't go back to its place");
+        }
+        finally
+        {
+            S.AutoHideRibbon = false; SettingsService.Commit();
+            ResetDocument();
+        }
+    }
 }

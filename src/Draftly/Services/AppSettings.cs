@@ -38,6 +38,7 @@ public sealed class AppSettings
     public bool HighlightCurrentLine { get; set; } = false;
     /// <summary>Line numbers in the page's left margin (on screen).</summary>
     public bool ShowLineNumbers { get; set; } = false;
+    public bool AutoHideRibbon { get; set; } = false;   // "Automatically hide toolbar" (ribbon interface only)
     /// <summary>Typing "# ", "## ", "- ", "1. ", "> " at the start of a line applies a heading, list or quote.</summary>
     public bool MarkdownShortcuts { get; set; } = true;
 
