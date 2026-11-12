@@ -12,6 +12,8 @@ public partial class App : Application
     public static string SelfTestOutput { get; private set; }
     public static string SelfTestShots { get; private set; }
     public static bool IsSelfTest => SelfTestOutput != null;
+    /// <summary>Started by the updater after installing a new version.</summary>
+    public static bool StartedAfterUpdate { get; private set; }
     internal static string MainWindowTestName = "(starting)";
 
     protected override void OnStartup(StartupEventArgs e)
@@ -61,6 +63,7 @@ public partial class App : Application
             try { if (File.Exists(arg)) files.Add(Path.GetFullPath(arg)); } catch { }
         }
         bool newWindow = e.Args.Any(a => a.Equals("--new-window", StringComparison.OrdinalIgnoreCase));
+        StartedAfterUpdate = e.Args.Any(a => a.Equals("--updated", StringComparison.OrdinalIgnoreCase));
 
         // A file double-clicked in File Explorer opens as a tab in the Draftly window that's already open.
         if (!IsSelfTest && !newWindow && files.Count > 0 && SettingsService.Current.OpenInExistingWindow && SettingsService.Current.UseTabs &&

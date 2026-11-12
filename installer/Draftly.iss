@@ -9,7 +9,7 @@
 
 #define MyAppName "Draftly"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.2.1"
+  #define MyAppVersion "1.3.0"
 #endif
 #define MyAppPublisher "Bytehawk Studio"
 #define MyAppExeName "Draftly.exe"
@@ -116,6 +116,8 @@ Root: HKA; Subkey: "Software\Classes\.md\OpenWithProgids"; ValueType: string; Va
 Filename: "ms-settings:defaultapps?registeredAppMachine=Draftly"; Description: "Open Default apps to make Draftly the default for the file types you chose"; Flags: shellexec nowait postinstall skipifsilent unchecked; Tasks: assocrtf assoctxt assocmd; Check: IsAdminInstallMode
 Filename: "ms-settings:defaultapps?registeredAppUser=Draftly"; Description: "Open Default apps to make Draftly the default for the file types you chose"; Flags: shellexec nowait postinstall skipifsilent unchecked; Tasks: assocrtf assoctxt assocmd; Check: not IsAdminInstallMode
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; Draftly's built-in updater runs this setup with /SILENT /RELAUNCH: open Draftly again afterwards, as the user (not as admin).
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--updated"; Flags: nowait runasoriginaluser; Check: RelaunchRequested
 
 [UninstallRun]
 ; Removes the per-user "Open with" entries Draftly adds when you click "Make Draftly the default" in its Settings.
@@ -127,6 +129,16 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--unregister-file-types"; Flags:
 [Code]
 { /NOICONS: the launcher installs Draftly without Start menu entries. Inno Setup only honours it
   on the Start Menu folder page, which Draftly doesn't show, so check the command line directly. }
+function RelaunchRequested: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/RELAUNCH') = 0 then
+      Result := True;
+end;
+
 function NoIconsRequested: Boolean;
 var
   I: Integer;

@@ -2,6 +2,21 @@
 
 All notable changes to Draftly. Newest first.
 
+## 1.3.0 - 2026-11-12
+
+### Added
+- **Built-in updates.** Draftly checks GitHub once a day for a new version and shows it in the info bar. "See what's new" lists the changes, with **Update now**, **Later** or **Skip this version**.
+  - You can also check any time from File › Check for updates, Help › Check for updates (Classic menus) or Settings › About, and turn the daily check off there.
+  - Updating asks about unsaved changes first, downloads the new version and checks it against the size and SHA-256 that GitHub publishes. Draftly then closes, updates and opens again with your tabs.
+  - Installed with the setup: the new setup runs silently. Windows asks for permission if Draftly is installed for all users.
+  - Unzipped, or installed by the Bytehawk Studio Launcher: Draftly.exe is replaced in place.
+- A new **Print preview** icon (a page with a magnifying glass) in the File menu and the Classic toolbar.
+- Settings › About now mentions Markdown and credits Markdig.
+- Self-tests for the updater and the new icon.
+
+### Changed
+- If a second Draftly window takes over (for example right after an update), files opened from File Explorer still go to it.
+
 ## 1.2.1 - 2026-11-11
 
 ### Added

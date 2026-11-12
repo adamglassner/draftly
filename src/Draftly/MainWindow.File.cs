@@ -1,3 +1,4 @@
+using Draftly.Controls;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -39,7 +40,9 @@ public partial class MainWindow
         menu.Items.Add(Item("Save all", null, "", () => SaveAll(), _tabs.Count > 1));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Print…", "", "Ctrl+P", Print));
-        menu.Items.Add(Item("Print preview", "", "Ctrl+F2", PrintPreview));
+        var preview = Item("Print preview", null, "Ctrl+F2", PrintPreview);
+        preview.Icon = Icons.PrintPreview(16);
+        menu.Items.Add(preview);
         menu.Items.Add(Item("Page setup…", "", "", () => PageSetup()));
         menu.Items.Add(new Separator());
 
@@ -63,6 +66,7 @@ public partial class MainWindow
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Settings", "", "Ctrl+,", () => OpenSettings()));
         menu.Items.Add(Item("About Draftly", "", "", () => OpenSettings("About")));
+        menu.Items.Add(Item("Check for updates…", "\uE895", "", CheckForUpdatesNow));
         menu.Items.Add(new Separator());
         if (S.UseTabs) menu.Items.Add(Item("Close tab", null, "Ctrl+W", () => CloseTab(_tab)));
         menu.Items.Add(Item("Exit", "", "Alt+F4", Close));

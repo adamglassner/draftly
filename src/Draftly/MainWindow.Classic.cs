@@ -1,3 +1,4 @@
+using Draftly.Controls;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
@@ -156,7 +157,7 @@ public partial class MainWindow
         row.Children.Add(ToolButton("", "Save (Ctrl+S)", () => Save()));
         row.Children.Add(Divider());
         row.Children.Add(ToolButton("", "Print (Ctrl+P)", Print));
-        row.Children.Add(ToolButton("", "Print preview (Ctrl+F2)", PrintPreview));
+        row.Children.Add(ToolButton(Icons.PrintPreview(16), "Print preview (Ctrl+F2)", PrintPreview));
         row.Children.Add(Divider());
         row.Children.Add(ToolButton("", "Find (Ctrl+F)", () => OpenFind(false)));
         row.Children.Add(ToolButton("", "Replace (Ctrl+H)", () => OpenFind(true)));
@@ -334,7 +335,9 @@ public partial class MainWindow
         file.Items.Add(Enabled(Item("Save a_ll", () => SaveAll()), () => _tabs.Count > 1));
         file.Items.Add(new Separator());
         file.Items.Add(Item("_Print…", Print, "Ctrl+P", ""));
-        file.Items.Add(Item("Print pre_view", PrintPreview, "Ctrl+F2", ""));
+        var preview = Item("Print pre_view", PrintPreview, "Ctrl+F2");
+        preview.Icon = Icons.PrintPreview(16);
+        file.Items.Add(preview);
         file.Items.Add(Item("Page set_up…", () => PageSetup()));
         file.Items.Add(new Separator());
         var recent = new MenuItem { Header = "_Recent documents" };
@@ -505,6 +508,7 @@ public partial class MainWindow
         {
             try { Process.Start(new ProcessStartInfo("https://github.com/adamglassner/draftly") { UseShellExecute = true }); } catch { }
         }));
+        help.Items.Add(Item("Check for _updates…", CheckForUpdatesNow));
         help.Items.Add(new Separator());
         help.Items.Add(Item("_About Draftly", () => OpenSettings("About"), "", ""));
         menu.Items.Add(help);

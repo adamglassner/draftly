@@ -78,6 +78,7 @@ public partial class MainWindow
         BuildTabHeader(_tab);
         UpdateTabStrip();
 
+        Closed += (_, _) => RelaunchIfUpdated();
         AllowDrop = true;
         PreviewDragOver += Window_PreviewDragOver;
         PreviewDrop += Window_PreviewDrop;
@@ -432,6 +433,7 @@ public partial class MainWindow
         CheckForRecovery();
         if (S.OpenInExistingWindow) SingleInstance.Listen(received => Dispatcher.BeginInvoke(new Action(() => ReceiveFiles(received))));
         OfferDefaultApp();
+        StartupUpdates();
     }
 
     private sealed class SessionTab
@@ -552,17 +554,24 @@ public partial class MainWindow
 
     private bool _closingConfirmed;
 
+    private bool _skipClosePrompts;   // the user already answered them (closing for an update)
+
+    /// <summary>Asks about every tab with unsaved changes (unless they're kept for next time). False if the user cancelled.</summary>
+    private bool ConfirmCloseAll()
+    {
+        if (S.KeepUnsavedOnClose) return true;
+        foreach (var t in _tabs.Where(x => x.Dirty).ToList())
+        {
+            ActivateTab(t);
+            if (!ConfirmDiscard()) return false;
+        }
+        return true;
+    }
+
     private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
         if (_closingConfirmed) return;
-        if (!S.KeepUnsavedOnClose)
-        {
-            foreach (var t in _tabs.Where(x => x.Dirty).ToList())
-            {
-                ActivateTab(t);
-                if (!ConfirmDiscard()) { e.Cancel = true; return; }
-            }
-        }
+        if (!_skipClosePrompts && !ConfirmCloseAll()) { e.Cancel = true; return; }
         _closingConfirmed = true;
         if (S.RestoreTabs || S.KeepUnsavedOnClose) SaveSession(S.KeepUnsavedOnClose);
         else ClearSession();

@@ -55,7 +55,7 @@ public static class SingleInstance
                     pipe = new NamedPipeServerStream(PipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte,
                         PipeOptions.CurrentUserOnly);
                 }
-                catch { return; }   // another Draftly window already owns the pipe; it gets the files
+                catch { Thread.Sleep(2000); continue; }   // another Draftly window owns the pipe for now (e.g. closing after an update)
                 try
                 {
                     using (pipe)

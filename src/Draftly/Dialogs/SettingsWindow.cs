@@ -482,9 +482,17 @@ public sealed class SettingsWindow : Window
         info.Children.Add(Hint("A modern rich text word processor for Windows."));
         head.Children.Add(info);
         sp.Children.Add(head);
-        var repo = new Button { Content = "Draftly on GitHub", Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left };
+        var check = new Button { Content = "Check for updates" };
+        check.Click += (_, _) => { if (Owner is MainWindow mw) { Close(); mw.CheckForUpdatesNow(); } };
+        var repo = new Button { Content = "Draftly on GitHub", Margin = new Thickness(8, 0, 0, 0) };
         repo.Click += (_, _) => { try { Process.Start(new ProcessStartInfo("https://github.com/adamglassner/draftly") { UseShellExecute = true }); } catch { } };
-        sp.Children.Add(repo);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        buttons.Children.Add(check);
+        buttons.Children.Add(repo);
+        sp.Children.Add(buttons);
+        sp.Children.Add(Card(
+            Setting("Check for updates automatically", "Once a day, Draftly asks GitHub whether there's a newer version and offers to install it. Nothing is installed without asking you.",
+                Toggle(S.CheckForUpdates, v => S.CheckForUpdates = v))));
         var whatsNew = WhatsNew($"{v.Major}.{v.Minor}.{v.Build}");
         if (whatsNew != null)
         {
@@ -497,9 +505,9 @@ public sealed class SettingsWindow : Window
         sp.Children.Add(H("About"));
         sp.Children.Add(Card(
             new TextBlock { Text = "File formats", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) },
-            Hint("Opens and saves Rich Text (.rtf) and plain text (.txt). Opens Word (.docx) documents for reading and editing; save them as .rtf or .txt."),
+            Hint("Opens and saves Rich Text (.rtf), Markdown (.md) and plain text (.txt). Opens Word (.docx) documents for reading and editing; save them as .rtf, .md or .txt."),
             new TextBlock { Text = "Credits", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) },
-            Hint("Word import uses the Open XML SDK by Microsoft (MIT licence). Built with .NET 8 and WPF.")));
+            Hint("Word import uses the Open XML SDK by Microsoft (MIT licence). Markdown uses Markdig by Alexandre Mutel (BSD 2-clause licence). Built with .NET 8 and WPF.")));
         sp.Children.Add(Hint($"© 2026 Bytehawk Studio. Running on {Environment.OSVersion.VersionString}."));
         return sp;
     }
